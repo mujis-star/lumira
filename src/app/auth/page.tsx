@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { GoogleSignInModal } from '@/components/auth/GoogleSignInModal';
 import { sounds, triggerConfetti } from '@/lib/utils';
 import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
-  const { currentUser, isLoading: isAuthLoading, login, signup, loginWithGoogle } = useAuth();
+  const { currentUser, savedAccounts, isLoading: isAuthLoading, login, signup, loginWithGoogle } = useAuth();
 
   // Mode: 'login' | 'signup'
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -25,6 +26,7 @@ export default function AuthPage() {
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // If already authenticated, redirect to home feed
@@ -94,12 +96,12 @@ export default function AuthPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleAccountSelected = async (email: string, displayName: string, avatarUrl?: string) => {
     setError(null);
     setIsLoading(true);
 
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(email, displayName, avatarUrl);
       sounds.playSend();
       triggerConfetti(0.5, 0.5);
       router.push('/');
@@ -376,7 +378,7 @@ export default function AuthPage() {
           {/* Google OAuth Button */}
           <button
             type="button"
-            onClick={handleGoogleSignIn}
+            onClick={() => setIsGoogleModalOpen(true)}
             disabled={isLoading}
             className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50"
           >
@@ -411,6 +413,14 @@ export default function AuthPage() {
           <p>© 2026 Lumira from Lumira Labs</p>
         </footer>
       </div>
+
+      {/* Official Google Sign-In Account Chooser Modal */}
+      <GoogleSignInModal
+        isOpen={isGoogleModalOpen}
+        onClose={() => setIsGoogleModalOpen(false)}
+        onSelectAccount={handleGoogleAccountSelected}
+        savedAccounts={savedAccounts}
+      />
     </div>
   );
 }

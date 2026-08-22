@@ -20,7 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   isFirebaseActive: boolean;
   login: (emailOrUsername: string, pass: string) => Promise<boolean>;
-  loginWithGoogle: (email?: string, name?: string) => Promise<boolean>;
+  loginWithGoogle: (email?: string, name?: string, avatarUrl?: string) => Promise<boolean>;
   loginWithFacebook: (nameOrEmail?: string) => Promise<boolean>;
   loginWithX: (handle?: string, name?: string) => Promise<boolean>;
   signup: (email: string, pass: string, username: string, name: string) => Promise<boolean>;
@@ -42,6 +42,10 @@ const CREDENTIALS_STORAGE_KEY = 'lumira-v2-credentials';
 
 // Default password for seed accounts
 const DEFAULT_SEED_PASSWORD = 'lumira123';
+
+function generateId(prefix: string) {
+  return `${prefix}-${Math.random().toString(36).substring(2, 9)}`;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<UserProfile[]>(SEED_USERS);
@@ -290,7 +294,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Local secure user creation
-    const newUserId = `user-${Date.now()}`;
+    const newUserId = generateId('user');
     const newUser: UserProfile = {
       id: newUserId,
       username: cleanUsername,
@@ -318,56 +322,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  // Google OAuth with Firebase or real popup
-  const loginWithGoogle = async (): Promise<boolean> => {
+  // Google OAuth with Firebase or Google Account Chooser
+  const loginWithGoogle = async (email?: string, name?: string, avatarUrl?: string): Promise<boolean> => {
+    // If specific email is passed (from Google Account Chooser modal)
+    if (email) {
+      const cleanEmail = email.trim().toLowerCase();
+      const existing = users.find((u) => u.email?.toLowerCase() === cleanEmail);
+      if (existing) {
+        const updated = {
+          ...existing,
+          displayName: name || existing.displayName,
+          avatarUrl: avatarUrl || existing.avatarUrl,
+        };
+        setCurrentUser(updated);
+        rememberAccount(updated.id);
+        persistUsers(users.map((u) => (u.id === updated.id ? updated : u)), updated);
+        return true;
+      }
+
+      const namePart = cleanEmail.split('@')[0].replace(/[^a-z0-9_.]/g, '') || 'google_user';
+      const newGoogleUser: UserProfile = {
+        id: generateId('user-google'),
+        username: namePart,
+        displayName: name?.trim() || namePart.charAt(0).toUpperCase() + namePart.slice(1),
+        email: cleanEmail,
+        avatarUrl:
+          avatarUrl ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
+        bio: 'Visual creator on Lumira ✦ Connected via Google Account',
+        website: 'https://lumira.app',
+        followersCount: 15,
+        followingCount: 3,
+        postsCount: 0,
+        sparksCount: 150,
+        followers: ['user-elena'],
+        following: ['user-admin', 'user-elena', 'user-marcus'],
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedUsers = [newGoogleUser, ...users];
+      setCurrentUser(newGoogleUser);
+      rememberAccount(newGoogleUser.id);
+      persistUsers(updatedUsers, newGoogleUser);
+      return true;
+    }
+
+    // Otherwise try Firebase Popup if active
     if (isFirebaseActive && firebaseAuth) {
       try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         const cred = await signInWithPopup(firebaseAuth, provider);
         const fbUser = cred.user;
-        if (fbUser) {
-          const existing = users.find((u) => u.email?.toLowerCase() === fbUser.email?.toLowerCase());
-          if (existing) {
-            const updated = {
-              ...existing,
-              displayName: fbUser.displayName || existing.displayName,
-              avatarUrl: fbUser.photoURL || existing.avatarUrl,
-            };
-            setCurrentUser(updated);
-            rememberAccount(updated.id);
-            persistUsers(users.map((u) => (u.id === updated.id ? updated : u)), updated);
-            return true;
-          } else {
-            const namePart = (fbUser.email?.split('@')[0] || 'creator').replace(/[^a-z0-9_.]/g, '');
-            const newGoogleUser: UserProfile = {
-              id: fbUser.uid,
-              username: namePart || 'google_user',
-              displayName: fbUser.displayName || namePart,
-              email: fbUser.email || '',
-              avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
-              bio: 'Visual creator on Lumira ✦ Connected via Google',
-              followersCount: 0,
-              followingCount: 2,
-              postsCount: 0,
-              sparksCount: 150,
-              followers: [],
-              following: ['user-elena', 'user-marcus'],
-              createdAt: new Date().toISOString(),
-            };
-            const updatedUsers = [newGoogleUser, ...users];
-            setCurrentUser(newGoogleUser);
-            rememberAccount(newGoogleUser.id);
-            persistUsers(updatedUsers, newGoogleUser);
-            return true;
-          }
+        if (fbUser && fbUser.email) {
+          return loginWithGoogle(fbUser.email, fbUser.displayName || undefined, fbUser.photoURL || undefined);
         }
       } catch (err: unknown) {
         throw new Error(err instanceof Error ? err.message : 'Google sign-in was cancelled or failed.');
       }
     }
 
-    throw new Error('Google OAuth requires Firebase authentication configuration on your domain. Please use Email & Password Sign Up / Log In below.');
+    return false;
   };
 
   const loginWithFacebook = async (): Promise<boolean> => {
