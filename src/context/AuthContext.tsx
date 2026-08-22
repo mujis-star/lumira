@@ -73,9 +73,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let parsedUsers: UserProfile[] = SEED_USERS;
         if (storedUsers) {
           try {
-            parsedUsers = JSON.parse(storedUsers);
+            const rawUsers: UserProfile[] = JSON.parse(storedUsers);
+            const existingIds = new Set(rawUsers.map((u) => u.id));
+            const existingUsernames = new Set(rawUsers.map((u) => u.username.toLowerCase()));
+            const missingSeeds = SEED_USERS.filter(
+              (s) => !existingIds.has(s.id) && !existingUsernames.has(s.username.toLowerCase())
+            );
+            parsedUsers = [...rawUsers, ...missingSeeds];
             setUsers(parsedUsers);
-          } catch {}
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(parsedUsers));
+          } catch {
+            setUsers(SEED_USERS);
+          }
+        } else {
+          setUsers(SEED_USERS);
         }
 
         if (storedCredentials) {
@@ -102,6 +113,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSavedAccountIds([]);
           }
         }
+
+        // Background fetch from server user registry
+        fetch('/api/users')
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.users && Array.isArray(data.users)) {
+              setUsers((prev) => {
+                const currentIds = new Set(prev.map((u) => u.id));
+                const newServerUsers = data.users.filter((u: UserProfile) => !currentIds.has(u.id));
+                if (newServerUsers.length > 0) {
+                  const merged = [...prev, ...newServerUsers];
+                  try {
+                    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+                  } catch {}
+                  return merged;
+                }
+                return prev;
+              });
+            }
+          })
+          .catch(() => {});
       } catch {
         // fallback
       } finally {
@@ -109,7 +141,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }, 0);
 
-    return () => clearTimeout(timer);
+    // Cross-tab / cross-window real-time synchronization
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === USERS_STORAGE_KEY && e.newValue) {
+        try {
+          const updated = JSON.parse(e.newValue);
+          if (Array.isArray(updated)) {
+            setUsers(updated);
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const rememberAccount = (userId: string) => {
@@ -168,6 +217,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
       if (current) {
         localStorage.setItem(CURRENT_USER_ID_KEY, current.id);
+        fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(current),
+        }).catch(() => {});
       } else {
         localStorage.removeItem(CURRENT_USER_ID_KEY);
       }

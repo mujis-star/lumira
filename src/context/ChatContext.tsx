@@ -65,6 +65,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // fallback
     }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === CONVERSATIONS_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setConversations(parsed);
+        } catch {}
+      }
+      if (e.key === MESSAGES_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && typeof parsed === 'object') setMessages(parsed);
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const persistConversations = useCallback((updated: Conversation[]) => {

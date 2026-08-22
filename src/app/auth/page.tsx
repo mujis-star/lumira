@@ -56,6 +56,11 @@ const DEFAULT_GOOGLE_ACCOUNTS: GoogleAccount[] = [
     email: 'mujee00012@gmail.com',
     avatar: '/images/avatar-mujeeb.png',
   },
+  {
+    name: 'Muhammed Hisham',
+    email: 'mhudhishamp@gmail.com',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=600&q=80',
+  },
 ];
 
 export default function AuthPage() {
