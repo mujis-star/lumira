@@ -89,13 +89,18 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)] flex flex-col items-center justify-center p-4 select-none">
-      <div className="w-full max-w-[380px] space-y-4">
-        {/* Main Brand Card */}
-        <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] p-8 sm:p-10 space-y-6 text-center rounded-2xl shadow-xl">
+    <div className="relative min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 select-none overflow-hidden">
+      {/* Ambient Cosmic Neon Background Glows */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-[390px] space-y-4">
+        {/* Main Glass Brand Card */}
+        <div className="bg-[#121216]/90 backdrop-blur-xl border border-white/10 p-8 sm:p-10 space-y-6 text-center rounded-3xl shadow-2xl shadow-purple-950/40">
           {/* Official Lumira Logo Emblem */}
           <div className="flex flex-col items-center justify-center space-y-3 pt-1">
-            <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-2xl shadow-purple-500/30 ring-2 ring-purple-500/30 hover:scale-105 transition-transform">
+            <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-xl shadow-purple-500/30 ring-2 ring-purple-500/40 hover:scale-105 transition-transform">
               <Image
                 src="/lumira-logo.png"
                 alt="Lumira Logo"
@@ -106,17 +111,17 @@ export default function AuthPage() {
               />
             </div>
             <div className="space-y-0.5">
-              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-pink-500 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">
                 Lumira
               </h1>
-              <p className="text-[11px] font-semibold tracking-wider text-[var(--text-secondary)] uppercase">
+              <p className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">
                 Where Moments Illuminate
               </p>
             </div>
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-semibold">
+            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-semibold">
               {error}
             </div>
           )}
@@ -128,7 +133,7 @@ export default function AuthPage() {
               type="button"
               onClick={() => handleSignIn('google')}
               disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl border border-[var(--border-color)] bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700/80 text-xs font-bold text-[var(--text-primary)] flex items-center justify-center gap-3 transition-all active:scale-98 shadow-sm cursor-pointer disabled:opacity-50 group"
+              className="w-full py-3 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50 group"
             >
               {/* Google 4-Color Icon */}
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -161,7 +166,7 @@ export default function AuthPage() {
               type="button"
               onClick={() => handleSignIn('facebook')}
               disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] text-white text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-sm cursor-pointer disabled:opacity-50 group"
+              className="w-full py-3 px-4 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] text-white text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50 group"
             >
               {/* Facebook Icon */}
               <svg className="w-4 h-4 shrink-0 fill-white" viewBox="0 0 24 24">
@@ -179,7 +184,7 @@ export default function AuthPage() {
               type="button"
               onClick={() => handleSignIn('x')}
               disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-black hover:bg-neutral-900 text-white text-xs font-bold border border-neutral-700/60 flex items-center justify-center gap-3 transition-all active:scale-98 shadow-sm cursor-pointer disabled:opacity-50 group"
+              className="w-full py-3 px-4 rounded-xl bg-[#000000] hover:bg-neutral-900 text-white text-xs font-bold border border-white/20 hover:border-white/40 flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50 group"
             >
               {/* X Icon */}
               <svg className="w-4 h-4 shrink-0 fill-white" viewBox="0 0 24 24">
@@ -192,14 +197,14 @@ export default function AuthPage() {
           </div>
 
           {/* Custom Handle / Account Option */}
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               type="button"
               onClick={() => {
                 setActiveProvider('google');
                 setIsCustomModalOpen(true);
               }}
-              className="text-xs font-semibold text-[#0095f6] hover:underline cursor-pointer"
+              className="text-xs font-semibold text-[#3897f0] hover:text-[#58a6ff] hover:underline cursor-pointer"
             >
               Sign in with custom Gmail, Facebook or 𝕏 handle
             </button>
@@ -207,10 +212,10 @@ export default function AuthPage() {
         </div>
 
         {/* 1-Tap Quick Persona Switcher */}
-        <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] p-4 rounded-2xl space-y-2.5">
-          <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] font-semibold px-1">
+        <div className="bg-[#121216]/80 backdrop-blur-md border border-white/10 p-4 rounded-3xl space-y-2.5 shadow-xl">
+          <div className="flex items-center justify-between text-xs text-neutral-400 font-semibold px-1">
             <span>Or 1-Tap Instant Sign-In:</span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -219,14 +224,14 @@ export default function AuthPage() {
                 key={user.id}
                 type="button"
                 onClick={() => handlePersonaSelect(user.id)}
-                className="flex items-center gap-2 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors text-left cursor-pointer group"
+                className="flex items-center gap-2.5 p-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-blue-500/40 transition-all text-left cursor-pointer group"
               >
                 <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" isVerified={user.isVerified} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-[var(--text-primary)] truncate group-hover:text-[#0095f6]">
+                  <p className="text-xs font-bold text-white truncate group-hover:text-[#3897f0]">
                     {user.username}
                   </p>
-                  <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                  <p className="text-[10px] text-neutral-400 truncate">
                     {user.displayName.split(' ')[0]}
                   </p>
                 </div>
@@ -236,9 +241,9 @@ export default function AuthPage() {
         </div>
 
         {/* Footer */}
-        <footer className="text-center text-[11px] text-[var(--text-secondary)] space-y-1">
-          <p className="flex items-center justify-center gap-1 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+        <footer className="text-center text-[11px] text-neutral-500 space-y-1">
+          <p className="flex items-center justify-center gap-1 font-medium text-neutral-400">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
             <span>Secure Authentication Powered by Lumira</span>
           </p>
           <p>© 2026 Lumira from Lumira Labs</p>
