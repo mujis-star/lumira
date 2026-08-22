@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { SEED_USERS, SEED_CONVERSATIONS, SEED_MESSAGES, SEED_POSTS, SEED_NOTIFICATIONS } from '@/lib/seedData';
 import { UserProfile, Conversation, Message, Post, AppNotification } from '@/lib/types';
 
@@ -9,10 +9,36 @@ const messagesMap = new Map<string, Message[]>();
 let postsList: Post[] = [...SEED_POSTS];
 let notificationsList: AppNotification[] = [...SEED_NOTIFICATIONS];
 
+function sanitizeUser(u: UserProfile): UserProfile {
+  const cleanUsername = u.username.toLowerCase().trim();
+  const cleanFollowing = (u.following || []).filter(
+    (fid) => fid !== u.id && fid !== u.username && fid !== cleanUsername
+  );
+  const cleanFollowers = (u.followers || []).filter(
+    (fid) => fid !== u.id && fid !== u.username && fid !== cleanUsername
+  );
+
+  let avatar = u.avatarUrl;
+  if (cleanUsername === 'mujee00012' || u.email?.toLowerCase() === 'mujee00012@gmail.com') {
+    avatar = '/images/avatar-mujeeb.png';
+  }
+
+  return {
+    ...u,
+    username: cleanUsername,
+    avatarUrl: avatar,
+    following: Array.from(new Set(cleanFollowing)),
+    followers: Array.from(new Set(cleanFollowers)),
+    followingCount: cleanFollowing.length,
+    followersCount: cleanFollowers.length,
+  };
+}
+
 // Initialize with seed data
 SEED_USERS.forEach((u) => {
-  usersMap.set(u.id, u);
-  usersMap.set(u.username.toLowerCase(), u);
+  const clean = sanitizeUser(u);
+  usersMap.set(clean.username, clean);
+  usersMap.set(clean.id, clean);
 });
 
 SEED_CONVERSATIONS.forEach((c) => {
@@ -24,15 +50,13 @@ Object.entries(SEED_MESSAGES).forEach(([convId, msgs]) => {
 });
 
 function getUniqueUsers(): UserProfile[] {
-  const list: UserProfile[] = [];
-  const seen = new Set<string>();
+  const byUsername = new Map<string, UserProfile>();
   for (const user of usersMap.values()) {
-    if (!seen.has(user.id)) {
-      seen.add(user.id);
-      list.push(user);
+    if (!byUsername.has(user.username)) {
+      byUsername.set(user.username, sanitizeUser(user));
     }
   }
-  return list;
+  return Array.from(byUsername.values());
 }
 
 function getUniqueConversations(): Conversation[] {
@@ -72,9 +96,9 @@ export async function POST(req: Request) {
     const { action, payload } = body || {};
 
     if (action === 'register_user' && payload) {
-      const u: UserProfile = payload;
+      const u: UserProfile = sanitizeUser(payload);
       usersMap.set(u.id, u);
-      usersMap.set(u.username.toLowerCase(), u);
+      usersMap.set(u.username, u);
     }
 
     if (action === 'send_message' && payload) {
@@ -83,7 +107,6 @@ export async function POST(req: Request) {
         const existing = messagesMap.get(convId) || [];
         messagesMap.set(convId, [...existing, message]);
 
-        // Update or create conversation
         let conv = conversationsMap.get(convId);
         if (!conv && receiverId && sender) {
           const receiver = usersMap.get(receiverId);
@@ -109,24 +132,24 @@ export async function POST(req: Request) {
       const cur = usersMap.get(currentUserId);
       const tar = usersMap.get(targetUserId);
 
-      if (cur && tar) {
-        const wasFollowing = cur.following.includes(targetUserId);
+      if (cur && tar && cur.id !== tar.id && cur.username !== tar.username) {
+        const wasFollowing = cur.following.includes(tar.id) || cur.following.includes(tar.username);
+
         cur.following = wasFollowing
-          ? cur.following.filter((id) => id !== targetUserId)
-          : [...cur.following, targetUserId];
+          ? cur.following.filter((id) => id !== tar.id && id !== tar.username && id !== cur.id)
+          : [...cur.following.filter((id) => id !== cur.id), tar.id];
         cur.followingCount = cur.following.length;
 
         tar.followers = wasFollowing
-          ? tar.followers.filter((id) => id !== currentUserId)
-          : [...tar.followers, currentUserId];
+          ? tar.followers.filter((id) => id !== cur.id && id !== cur.username && id !== tar.id)
+          : [...tar.followers.filter((id) => id !== tar.id), cur.id];
         tar.followersCount = tar.followers.length;
 
-        usersMap.set(cur.id, cur);
-        usersMap.set(cur.username.toLowerCase(), cur);
-        usersMap.set(tar.id, tar);
-        usersMap.set(tar.username.toLowerCase(), tar);
+        usersMap.set(cur.id, sanitizeUser(cur));
+        usersMap.set(cur.username, sanitizeUser(cur));
+        usersMap.set(tar.id, sanitizeUser(tar));
+        usersMap.set(tar.username, sanitizeUser(tar));
 
-        // If newly followed, create a real-time Notification for the target user
         if (!wasFollowing) {
           const followNotif: AppNotification = {
             id: 'notif-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),

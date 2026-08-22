@@ -17,18 +17,42 @@ export function RightWidgetPanel() {
   const [isSuggestedModalOpen, setIsSuggestedModalOpen] = useState(false);
   const [suggestedSearch, setSuggestedSearch] = useState('');
 
-  const suggestedUsers = allUsers
-    .filter((u) => u.id !== currentUser?.id)
-    .slice(0, 5);
+  // Clean and deduplicate suggestions list
+  const cleanSuggestions = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: typeof allUsers = [];
 
-  const allSuggestedModalUsers = allUsers
-    .filter((u) => u.id !== currentUser?.id)
-    .filter(
+    for (const u of allUsers) {
+      if (!u || !u.username) continue;
+      const uname = u.username.toLowerCase();
+      // Exclude currentUser
+      if (
+        currentUser &&
+        (u.id === currentUser.id ||
+          uname === currentUser.username.toLowerCase())
+      ) {
+        continue;
+      }
+      if (!seen.has(uname)) {
+        seen.add(uname);
+        list.push(u);
+      }
+    }
+    return list;
+  }, [allUsers, currentUser]);
+
+  const suggestedUsers = cleanSuggestions.slice(0, 5);
+
+  const allSuggestedModalUsers = React.useMemo(() => {
+    if (!suggestedSearch.trim()) return cleanSuggestions;
+    const q = suggestedSearch.toLowerCase().trim();
+    return cleanSuggestions.filter(
       (u) =>
-        !suggestedSearch.trim() ||
-        u.username.toLowerCase().includes(suggestedSearch.toLowerCase().trim()) ||
-        u.displayName.toLowerCase().includes(suggestedSearch.toLowerCase().trim())
+        u.username.toLowerCase().includes(q) ||
+        u.displayName.toLowerCase().includes(q) ||
+        (u.bio && u.bio.toLowerCase().includes(q))
     );
+  }, [cleanSuggestions, suggestedSearch]);
 
   return (
     <aside className="w-[320px] shrink-0 hidden lg:block select-none text-xs text-[var(--text-secondary)]">

@@ -91,6 +91,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFollowersModalOpen, setIsFollowersModalOpen] = useState(false);
   const [isFollowingModalOpen, setIsFollowingModalOpen] = useState(false);
+  const [followerSearch, setFollowerSearch] = useState('');
+  const [followingSearch, setFollowingSearch] = useState('');
 
   // Edit form state
   const [editDisplayName, setEditDisplayName] = useState('');
@@ -1063,36 +1065,215 @@ export default function ProfilePage({ params }: ProfilePageProps) {
       </Modal>
 
       {/* Followers Modal */}
-      <Modal isOpen={isFollowersModalOpen} onClose={() => setIsFollowersModalOpen(false)} title="Followers" size="sm">
-        <div className="p-4 max-h-80 overflow-y-auto space-y-3">
-          {allUsers.filter((u) => profileUser.followers.includes(u.id)).map((user) => (
-            <div key={user.id} className="flex items-center justify-between">
-              <Link href={`/profile/${user.username}`} onClick={() => setIsFollowersModalOpen(false)} className="flex items-center gap-3 min-w-0">
-                <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" isVerified={user.isVerified} />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{user.username}</p>
-                  <p className="text-[11px] text-[var(--text-secondary)] truncate">{user.displayName}</p>
-                </div>
-              </Link>
-            </div>
-          ))}
+      <Modal
+        isOpen={isFollowersModalOpen}
+        onClose={() => {
+          setIsFollowersModalOpen(false);
+          setFollowerSearch('');
+        }}
+        title={`Followers (${liveFollowersCount})`}
+        size="md"
+      >
+        <div className="p-4 space-y-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <input
+              type="text"
+              value={followerSearch}
+              onChange={(e) => setFollowerSearch(e.target.value)}
+              placeholder="Search followers..."
+              className="w-full px-3.5 py-2 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
+            />
+          </div>
+
+          {/* User List */}
+          <div className="max-h-80 overflow-y-auto space-y-1 divide-y divide-[var(--glass-border-subtle)] pr-1">
+            {allUsers
+              .filter((u) => {
+                if (!activeUser || !activeUser.followers) return false;
+                const matches =
+                  activeUser.followers.includes(u.id) ||
+                  activeUser.followers.includes(u.username.toLowerCase());
+                if (!matches) return false;
+                if (!followerSearch.trim()) return true;
+                const q = followerSearch.toLowerCase().trim();
+                return (
+                  u.username.toLowerCase().includes(q) ||
+                  u.displayName.toLowerCase().includes(q)
+                );
+              })
+              .map((user) => {
+                const following = isFollowing(user.id);
+                const isTargetSelf =
+                  currentUser &&
+                  (currentUser.id === user.id ||
+                    currentUser.username.toLowerCase() === user.username.toLowerCase());
+
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-colors group"
+                  >
+                    <Link
+                      href={`/profile/${user.username}`}
+                      onClick={() => setIsFollowersModalOpen(false)}
+                      className="flex items-center gap-3 min-w-0 flex-1"
+                    >
+                      <Avatar
+                        src={user.avatarUrl}
+                        alt={user.displayName}
+                        size="md"
+                        isVerified={user.isVerified}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-blue)] transition-colors">
+                          {user.username}
+                        </p>
+                        <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                          {user.displayName}
+                        </p>
+                      </div>
+                    </Link>
+
+                    {!isTargetSelf && currentUser && (
+                      <button
+                        type="button"
+                        onClick={() => toggleFollow(user.id)}
+                        className={`text-xs font-bold cursor-pointer shrink-0 ml-3 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 ${
+                          following
+                            ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] border border-[var(--glass-border)] hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30'
+                            : 'bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)] shadow-xs'
+                        }`}
+                      >
+                        {following ? 'Following' : 'Follow'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+            {allUsers.filter((u) => {
+              if (!activeUser || !activeUser.followers) return false;
+              return (
+                activeUser.followers.includes(u.id) ||
+                activeUser.followers.includes(u.username.toLowerCase())
+              );
+            }).length === 0 && (
+              <div className="text-center py-8 space-y-1">
+                <p className="text-xs font-bold text-[var(--text-primary)]">No followers yet</p>
+                <p className="text-[11px] text-[var(--text-secondary)]">When people follow this profile, you&apos;ll see them here.</p>
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 
       {/* Following Modal */}
-      <Modal isOpen={isFollowingModalOpen} onClose={() => setIsFollowingModalOpen(false)} title="Following" size="sm">
-        <div className="p-4 max-h-80 overflow-y-auto space-y-3">
-          {allUsers.filter((u) => profileUser.following.includes(u.id)).map((user) => (
-            <div key={user.id} className="flex items-center justify-between">
-              <Link href={`/profile/${user.username}`} onClick={() => setIsFollowingModalOpen(false)} className="flex items-center gap-3 min-w-0">
-                <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" isVerified={user.isVerified} />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{user.username}</p>
-                  <p className="text-[11px] text-[var(--text-secondary)] truncate">{user.displayName}</p>
-                </div>
-              </Link>
-            </div>
-          ))}
+      <Modal
+        isOpen={isFollowingModalOpen}
+        onClose={() => {
+          setIsFollowingModalOpen(false);
+          setFollowingSearch('');
+        }}
+        title={`Following (${liveFollowingCount})`}
+        size="md"
+      >
+        <div className="p-4 space-y-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <input
+              type="text"
+              value={followingSearch}
+              onChange={(e) => setFollowingSearch(e.target.value)}
+              placeholder="Search following..."
+              className="w-full px-3.5 py-2 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
+            />
+          </div>
+
+          {/* User List */}
+          <div className="max-h-80 overflow-y-auto space-y-1 divide-y divide-[var(--glass-border-subtle)] pr-1">
+            {allUsers
+              .filter((u) => {
+                if (!activeUser || !activeUser.following) return false;
+                // Never show self in following list
+                if (u.id === activeUser.id || u.username.toLowerCase() === activeUser.username.toLowerCase()) {
+                  return false;
+                }
+                const matches =
+                  activeUser.following.includes(u.id) ||
+                  activeUser.following.includes(u.username.toLowerCase());
+                if (!matches) return false;
+                if (!followingSearch.trim()) return true;
+                const q = followingSearch.toLowerCase().trim();
+                return (
+                  u.username.toLowerCase().includes(q) ||
+                  u.displayName.toLowerCase().includes(q)
+                );
+              })
+              .map((user) => {
+                const following = isFollowing(user.id);
+                const isTargetSelf =
+                  currentUser &&
+                  (currentUser.id === user.id ||
+                    currentUser.username.toLowerCase() === user.username.toLowerCase());
+
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-colors group"
+                  >
+                    <Link
+                      href={`/profile/${user.username}`}
+                      onClick={() => setIsFollowingModalOpen(false)}
+                      className="flex items-center gap-3 min-w-0 flex-1"
+                    >
+                      <Avatar
+                        src={user.avatarUrl}
+                        alt={user.displayName}
+                        size="md"
+                        isVerified={user.isVerified}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-blue)] transition-colors">
+                          {user.username}
+                        </p>
+                        <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                          {user.displayName}
+                        </p>
+                      </div>
+                    </Link>
+
+                    {!isTargetSelf && currentUser && (
+                      <button
+                        type="button"
+                        onClick={() => toggleFollow(user.id)}
+                        className={`text-xs font-bold cursor-pointer shrink-0 ml-3 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 ${
+                          following
+                            ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] border border-[var(--glass-border)] hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30'
+                            : 'bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)] shadow-xs'
+                        }`}
+                      >
+                        {following ? 'Following' : 'Follow'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+            {allUsers.filter((u) => {
+              if (!activeUser || !activeUser.following) return false;
+              if (u.id === activeUser.id || u.username.toLowerCase() === activeUser.username.toLowerCase()) return false;
+              return (
+                activeUser.following.includes(u.id) ||
+                activeUser.following.includes(u.username.toLowerCase())
+              );
+            }).length === 0 && (
+              <div className="text-center py-8 space-y-1">
+                <p className="text-xs font-bold text-[var(--text-primary)]">Not following anyone yet</p>
+                <p className="text-[11px] text-[var(--text-secondary)]">Profiles followed will appear here.</p>
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 

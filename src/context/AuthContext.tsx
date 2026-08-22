@@ -47,8 +47,58 @@ function generateId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
+export function sanitizeAndDeduplicateUsers(userList: UserProfile[]): UserProfile[] {
+  const byUsername = new Map<string, UserProfile>();
+
+  for (const u of userList) {
+    if (!u || !u.username) continue;
+    const cleanUsername = u.username.toLowerCase().trim();
+
+    // Never follow self
+    const cleanFollowing = (u.following || []).filter(
+      (fid) => fid !== u.id && fid !== u.username && fid !== cleanUsername
+    );
+    const cleanFollowers = (u.followers || []).filter(
+      (fid) => fid !== u.id && fid !== u.username && fid !== cleanUsername
+    );
+
+    // Standardize avatar for Mujeeb Rahman
+    let avatar = u.avatarUrl;
+    if (cleanUsername === 'mujee00012' || u.email?.toLowerCase() === 'mujee00012@gmail.com') {
+      avatar = '/images/avatar-mujeeb.png';
+    }
+
+    const cleanUser: UserProfile = {
+      ...u,
+      username: cleanUsername,
+      avatarUrl: avatar,
+      following: Array.from(new Set(cleanFollowing)),
+      followers: Array.from(new Set(cleanFollowers)),
+      followingCount: cleanFollowing.length,
+      followersCount: cleanFollowers.length,
+    };
+
+    if (!byUsername.has(cleanUsername)) {
+      byUsername.set(cleanUsername, cleanUser);
+    } else {
+      const existing = byUsername.get(cleanUsername)!;
+      byUsername.set(cleanUsername, {
+        ...cleanUser,
+        ...existing,
+        avatarUrl: cleanUser.avatarUrl || existing.avatarUrl,
+        following: Array.from(new Set([...cleanUser.following, ...existing.following])),
+        followers: Array.from(new Set([...cleanUser.followers, ...existing.followers])),
+        followingCount: Math.max(cleanUser.following.length, existing.following.length),
+        followersCount: Math.max(cleanUser.followers.length, existing.followers.length),
+      });
+    }
+  }
+
+  return Array.from(byUsername.values());
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [users, setUsers] = useState<UserProfile[]>(SEED_USERS);
+  const [users, setUsers] = useState<UserProfile[]>(() => sanitizeAndDeduplicateUsers(SEED_USERS));
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [savedAccountIds, setSavedAccountIds] = useState<string[]>([]);
   const [credentials, setCredentials] = useState<Record<string, string>>({
@@ -70,23 +120,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedSavedAccounts = localStorage.getItem(SAVED_ACCOUNTS_KEY);
         const storedCredentials = localStorage.getItem(CREDENTIALS_STORAGE_KEY);
 
-        let parsedUsers: UserProfile[] = SEED_USERS;
+        let parsedUsers: UserProfile[] = sanitizeAndDeduplicateUsers(SEED_USERS);
         if (storedUsers) {
           try {
             const rawUsers: UserProfile[] = JSON.parse(storedUsers);
-            const existingIds = new Set(rawUsers.map((u) => u.id));
-            const existingUsernames = new Set(rawUsers.map((u) => u.username.toLowerCase()));
-            const missingSeeds = SEED_USERS.filter(
-              (s) => !existingIds.has(s.id) && !existingUsernames.has(s.username.toLowerCase())
-            );
-            parsedUsers = [...rawUsers, ...missingSeeds];
+            parsedUsers = sanitizeAndDeduplicateUsers([...rawUsers, ...SEED_USERS]);
             setUsers(parsedUsers);
             localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(parsedUsers));
           } catch {
-            setUsers(SEED_USERS);
+            setUsers(parsedUsers);
           }
         } else {
-          setUsers(SEED_USERS);
+          setUsers(parsedUsers);
         }
 
         if (storedCredentials) {
@@ -96,7 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (storedCurrentUserId) {
-          const found = parsedUsers.find((u: UserProfile) => u.id === storedCurrentUserId);
+          const found = parsedUsers.find(
+            (u: UserProfile) =>
+              u.id === storedCurrentUserId ||
+              u.username.toLowerCase() === storedCurrentUserId.toLowerCase()
+          );
           if (found) {
             setCurrentUser(found);
           } else {
@@ -120,16 +169,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .then((data) => {
             if (data?.users && Array.isArray(data.users)) {
               setUsers((prev) => {
-                const currentIds = new Set(prev.map((u) => u.id));
-                const newServerUsers = data.users.filter((u: UserProfile) => !currentIds.has(u.id));
-                if (newServerUsers.length > 0) {
-                  const merged = [...prev, ...newServerUsers];
-                  try {
-                    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
-                  } catch {}
-                  return merged;
-                }
-                return prev;
+                const merged = sanitizeAndDeduplicateUsers([...prev, ...data.users]);
+                try {
+                  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+                } catch {}
+                return merged;
               });
             }
           })
@@ -508,42 +552,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistUsers(updatedUsers, updatedUser);
   };
 
-  const toggleFollow = (targetUserId: string) => {
-    if (!currentUser || currentUser.id === targetUserId) return;
+  const resolveUser = (idOrUsername: string): UserProfile | undefined => {
+    if (!idOrUsername) return undefined;
+    const clean = idOrUsername.toLowerCase().trim();
+    return users.find((u) => u.id === idOrUsername || u.username.toLowerCase() === clean);
+  };
 
-    const isCurrentlyFollowing = currentUser.following.includes(targetUserId);
+  const isFollowing = (targetIdOrUsername: string): boolean => {
+    if (!currentUser || !targetIdOrUsername) return false;
+    const target = resolveUser(targetIdOrUsername);
+    if (!target) {
+      return (
+        currentUser.following.includes(targetIdOrUsername) ||
+        currentUser.following.includes(targetIdOrUsername.toLowerCase())
+      );
+    }
+    return (
+      currentUser.following.includes(target.id) ||
+      currentUser.following.includes(target.username.toLowerCase())
+    );
+  };
+
+  const toggleFollow = (targetIdOrUsername: string) => {
+    if (!currentUser || !targetIdOrUsername) return;
+    const target = resolveUser(targetIdOrUsername);
+    if (
+      !target ||
+      target.id === currentUser.id ||
+      target.username.toLowerCase() === currentUser.username.toLowerCase()
+    ) {
+      return;
+    }
+
+    const isCurrentlyFollowing = isFollowing(target.id);
 
     const updatedFollowing = isCurrentlyFollowing
-      ? currentUser.following.filter((id) => id !== targetUserId)
-      : [...currentUser.following, targetUserId];
+      ? currentUser.following.filter(
+          (id) =>
+            id !== target.id &&
+            id !== target.username.toLowerCase() &&
+            id !== currentUser.id &&
+            id !== currentUser.username.toLowerCase()
+        )
+      : [...currentUser.following.filter((id) => id !== currentUser.id), target.id];
 
     const updatedCurrentUser: UserProfile = {
       ...currentUser,
-      following: updatedFollowing,
+      following: Array.from(new Set(updatedFollowing)),
       followingCount: updatedFollowing.length,
     };
 
-    const targetUser = users.find((u) => u.id === targetUserId);
-    if (!targetUser) return;
-
     const updatedTargetFollowers = isCurrentlyFollowing
-      ? targetUser.followers.filter((id) => id !== currentUser.id)
-      : [...targetUser.followers, currentUser.id];
+      ? target.followers.filter(
+          (id) =>
+            id !== currentUser.id &&
+            id !== currentUser.username.toLowerCase() &&
+            id !== target.id &&
+            id !== target.username.toLowerCase()
+        )
+      : [...target.followers.filter((id) => id !== target.id), currentUser.id];
 
     const updatedTargetUser: UserProfile = {
-      ...targetUser,
-      followers: updatedTargetFollowers,
+      ...target,
+      followers: Array.from(new Set(updatedTargetFollowers)),
       followersCount: updatedTargetFollowers.length,
     };
 
     const updatedUsers = users.map((u) => {
-      if (u.id === currentUser.id) return updatedCurrentUser;
-      if (u.id === targetUserId) return updatedTargetUser;
+      if (u.id === currentUser.id || u.username.toLowerCase() === currentUser.username.toLowerCase()) {
+        return updatedCurrentUser;
+      }
+      if (u.id === target.id || u.username.toLowerCase() === target.username.toLowerCase()) {
+        return updatedTargetUser;
+      }
       return u;
     });
 
+    const sanitizedUsers = sanitizeAndDeduplicateUsers(updatedUsers);
     setCurrentUser(updatedCurrentUser);
-    persistUsers(updatedUsers, updatedCurrentUser);
+    persistUsers(sanitizedUsers, updatedCurrentUser);
 
     // Broadcast follow status to server for real-time sync
     fetch('/api/sync', {
@@ -553,22 +640,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         action: 'toggle_follow',
         payload: {
           currentUserId: currentUser.id,
-          targetUserId,
+          targetUserId: target.id,
         },
       }),
     }).catch(() => {});
   };
 
-  const isFollowing = (targetUserId: string) => {
-    return !!currentUser?.following.includes(targetUserId);
-  };
-
   const getUserById = (userId: string) => {
-    return users.find((u) => u.id === userId);
+    return resolveUser(userId);
   };
 
   const getUserByUsername = (username: string) => {
-    return users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+    return resolveUser(username);
   };
 
   const savedAccounts = useMemo(() => {
