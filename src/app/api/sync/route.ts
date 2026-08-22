@@ -1,12 +1,13 @@
-﻿import { NextResponse } from 'next/server';
-import { SEED_USERS, SEED_CONVERSATIONS, SEED_MESSAGES, SEED_POSTS } from '@/lib/seedData';
-import { UserProfile, Conversation, Message, Post } from '@/lib/types';
+import { NextResponse } from 'next/server';
+import { SEED_USERS, SEED_CONVERSATIONS, SEED_MESSAGES, SEED_POSTS, SEED_NOTIFICATIONS } from '@/lib/seedData';
+import { UserProfile, Conversation, Message, Post, AppNotification } from '@/lib/types';
 
 // In-memory persistent server store for real-time synchronization
 const usersMap = new Map<string, UserProfile>();
 const conversationsMap = new Map<string, Conversation>();
 const messagesMap = new Map<string, Message[]>();
 let postsList: Post[] = [...SEED_POSTS];
+let notificationsList: AppNotification[] = [...SEED_NOTIFICATIONS];
 
 // Initialize with seed data
 SEED_USERS.forEach((u) => {
@@ -60,6 +61,7 @@ export async function GET() {
     conversations: getUniqueConversations(),
     messages: getMessagesRecord(),
     posts: postsList,
+    notifications: notificationsList,
     timestamp: Date.now(),
   });
 }
@@ -108,13 +110,13 @@ export async function POST(req: Request) {
       const tar = usersMap.get(targetUserId);
 
       if (cur && tar) {
-        const isFollowing = cur.following.includes(targetUserId);
-        cur.following = isFollowing
+        const wasFollowing = cur.following.includes(targetUserId);
+        cur.following = wasFollowing
           ? cur.following.filter((id) => id !== targetUserId)
           : [...cur.following, targetUserId];
         cur.followingCount = cur.following.length;
 
-        tar.followers = isFollowing
+        tar.followers = wasFollowing
           ? tar.followers.filter((id) => id !== currentUserId)
           : [...tar.followers, currentUserId];
         tar.followersCount = tar.followers.length;
@@ -123,6 +125,75 @@ export async function POST(req: Request) {
         usersMap.set(cur.username.toLowerCase(), cur);
         usersMap.set(tar.id, tar);
         usersMap.set(tar.username.toLowerCase(), tar);
+
+        // If newly followed, create a real-time Notification for the target user
+        if (!wasFollowing) {
+          const followNotif: AppNotification = {
+            id: 'notif-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            userId: tar.id,
+            type: 'follow',
+            actorId: cur.id,
+            actor: {
+              id: cur.id,
+              username: cur.username,
+              displayName: cur.displayName,
+              avatarUrl: cur.avatarUrl,
+              isVerified: cur.isVerified,
+            },
+            createdAt: new Date().toISOString(),
+            isRead: false,
+          };
+          notificationsList = [followNotif, ...notificationsList];
+        }
+      }
+    }
+
+    if (action === 'like_post' && payload) {
+      const { postId, postAuthorId, actor, postThumbnail } = payload;
+      if (postAuthorId && actor && postAuthorId !== actor.id) {
+        const likeNotif: AppNotification = {
+          id: 'notif-like-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          userId: postAuthorId,
+          type: 'like_post',
+          actorId: actor.id,
+          actor: {
+            id: actor.id,
+            username: actor.username,
+            displayName: actor.displayName,
+            avatarUrl: actor.avatarUrl,
+            isVerified: actor.isVerified,
+          },
+          postId,
+          postThumbnail,
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        };
+        notificationsList = [likeNotif, ...notificationsList];
+      }
+    }
+
+    if (action === 'comment_post' && payload) {
+      const { postId, postAuthorId, actor, commentText, postThumbnail } = payload;
+      if (postAuthorId && actor && postAuthorId !== actor.id) {
+        const commentNotif: AppNotification = {
+          id: 'notif-comm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          userId: postAuthorId,
+          type: 'comment',
+          actorId: actor.id,
+          actor: {
+            id: actor.id,
+            username: actor.username,
+            displayName: actor.displayName,
+            avatarUrl: actor.avatarUrl,
+            isVerified: actor.isVerified,
+          },
+          postId,
+          commentText,
+          postThumbnail,
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        };
+        notificationsList = [commentNotif, ...notificationsList];
       }
     }
 
@@ -137,6 +208,7 @@ export async function POST(req: Request) {
       conversations: getUniqueConversations(),
       messages: getMessagesRecord(),
       posts: postsList,
+      notifications: notificationsList,
       timestamp: Date.now(),
     });
   } catch {

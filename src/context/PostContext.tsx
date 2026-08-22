@@ -150,6 +150,23 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
     );
 
     persistPosts(updatedPosts);
+
+    // Broadcast like notification to server
+    if (!alreadyLiked && post.authorId !== currentUser.id) {
+      fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'like_post',
+          payload: {
+            postId: post.id,
+            postAuthorId: post.authorId,
+            actor: currentUser,
+            postThumbnail: post.media[0]?.url,
+          },
+        }),
+      }).catch(() => {});
+    }
   }, [currentUser, posts]);
 
   const isPostBookmarked = useCallback((postId: string): boolean => {
@@ -538,7 +555,26 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
     });
 
     sounds.playPop();
-  }, [currentUser]);
+
+    // Broadcast comment notification to server
+    const targetPost = posts.find((p) => p.id === postId);
+    if (targetPost && targetPost.authorId !== currentUser.id) {
+      fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'comment_post',
+          payload: {
+            postId,
+            postAuthorId: targetPost.authorId,
+            actor: currentUser,
+            commentText: content.trim(),
+            postThumbnail: targetPost.media[0]?.url,
+          },
+        }),
+      }).catch(() => {});
+    }
+  }, [currentUser, posts]);
 
   const toggleLikeComment = useCallback((postId: string, commentId: string) => {
     if (!currentUser) return;
