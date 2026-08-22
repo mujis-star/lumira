@@ -4,22 +4,28 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { Modal } from '@/components/ui/Modal';
 import { sounds, triggerConfetti } from '@/lib/utils';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
-  const { currentUser, isLoading: isAuthLoading, loginWithGoogle, loginWithFacebook, loginWithX } = useAuth();
+  const { currentUser, isLoading: isAuthLoading, login, signup, loginWithGoogle } = useAuth();
 
+  // Mode: 'login' | 'signup'
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+
+  // Form Fields
+  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [signupFullName, setSignupFullName] = useState('');
+  const [signupUsername, setSignupUsername] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+
+  // UI state
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<'google' | 'facebook' | 'x' | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Custom handle modal
-  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
-  const [customInput, setCustomInput] = useState('');
-  const [customDisplayName, setCustomDisplayName] = useState('');
 
   // If already authenticated, redirect to home feed
   useEffect(() => {
@@ -28,63 +34,56 @@ export default function AuthPage() {
     }
   }, [currentUser, isAuthLoading, router]);
 
-  const handleSignIn = async (provider: 'google' | 'facebook' | 'x') => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
-    setActiveProvider(provider);
     setIsLoading(true);
 
     try {
-      if (provider === 'google') {
-        // Attempt Firebase Google popup first
-        const success = await loginWithGoogle();
-        if (success) {
-          sounds.playSend();
-          triggerConfetti(0.5, 0.5);
-          router.push('/');
-          return;
-        } else {
-          // If popup is not active or cancelled, open the Gmail prompt modal
-          setIsCustomModalOpen(true);
-        }
-      } else {
-        // Facebook & 𝕏 prompt
-        setIsCustomModalOpen(true);
-      }
-    } catch {
-      setIsCustomModalOpen(true);
+      await login(emailOrUsername.trim(), password);
+      sounds.playSend();
+      triggerConfetti(0.5, 0.5);
+      router.push('/');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Sign in failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCustomSubmit = async (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customInput.trim() || !activeProvider) return;
-
-    setIsLoading(true);
     setError(null);
+    setIsLoading(true);
 
     try {
-      let success = false;
-      if (activeProvider === 'google') {
-        const email = customInput.includes('@') ? customInput.trim() : `${customInput.trim()}@gmail.com`;
-        success = await loginWithGoogle(email, customDisplayName);
-      } else if (activeProvider === 'facebook') {
-        success = await loginWithFacebook(customInput.trim());
-      } else if (activeProvider === 'x') {
-        success = await loginWithX(customInput.trim(), customDisplayName);
-      }
-
-      if (success) {
-        setIsCustomModalOpen(false);
-        sounds.playSend();
-        triggerConfetti(0.5, 0.5);
-        router.push('/');
-      } else {
-        setError('Authentication failed. Please check your credentials.');
-      }
+      await signup(
+        signupEmail.trim(),
+        signupPassword,
+        signupUsername.trim(),
+        signupFullName.trim()
+      );
+      sounds.playSend();
+      triggerConfetti(0.5, 0.5);
+      router.push('/');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Authentication failed.');
+      setError(err instanceof Error ? err.message : 'Registration failed. Please verify your details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await loginWithGoogle();
+      sounds.playSend();
+      triggerConfetti(0.5, 0.5);
+      router.push('/');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Google sign in failed.');
     } finally {
       setIsLoading(false);
     }
@@ -97,12 +96,12 @@ export default function AuthPage() {
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-[390px] space-y-4">
-        {/* Main Glass Brand Card */}
-        <div className="bg-[#121216]/90 backdrop-blur-xl border border-white/10 p-8 sm:p-10 space-y-6 text-center rounded-3xl shadow-2xl shadow-purple-950/40">
-          {/* Official Lumira Logo Emblem */}
-          <div className="flex flex-col items-center justify-center space-y-3 pt-1">
-            <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-xl shadow-purple-500/30 ring-2 ring-purple-500/40 hover:scale-105 transition-transform">
+      <div className="relative z-10 w-full max-w-[400px] space-y-4">
+        {/* Main Glass Authentication Card */}
+        <div className="bg-[#121216]/90 backdrop-blur-xl border border-white/10 p-7 sm:p-8 space-y-5 rounded-3xl shadow-2xl shadow-purple-950/40">
+          {/* Official Lumira Logo Emblem & Brand Title */}
+          <div className="flex flex-col items-center justify-center space-y-2 pt-1 text-center">
+            <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-xl shadow-purple-500/30 ring-2 ring-purple-500/40 hover:scale-105 transition-transform">
               <Image
                 src="/lumira-logo.png"
                 alt="Lumira Logo"
@@ -113,7 +112,7 @@ export default function AuthPage() {
               />
             </div>
             <div className="space-y-0.5">
-              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">
                 Lumira
               </h1>
               <p className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">
@@ -122,197 +121,245 @@ export default function AuthPage() {
             </div>
           </div>
 
+          {/* Mode Tabs: Log In vs Sign Up */}
+          <div className="flex items-center p-1 bg-white/5 border border-white/10 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setError(null);
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-[#0095f6] text-white shadow-md'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Log In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signup');
+                setError(null);
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                mode === 'signup'
+                  ? 'bg-[#0095f6] text-white shadow-md'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          {/* Error Message Box */}
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-semibold">
+            <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium text-center animate-shake">
               {error}
             </div>
           )}
 
-          {/* Social Sign-In Buttons */}
-          <div className="space-y-3 pt-2">
-            {/* 1. Google (Gmail) */}
-            <button
-              type="button"
-              onClick={() => handleSignIn('google')}
-              disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50 group"
-            >
-              {/* Google 4-Color Icon */}
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>
-                {isLoading && activeProvider === 'google'
-                  ? 'Connecting Gmail...'
-                  : 'Continue with Google (Gmail)'}
-              </span>
-            </button>
+          {/* 1. LOG IN FORM */}
+          {mode === 'login' && (
+            <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+              {/* Email or Username */}
+              <div>
+                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                  Email or Username
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <input
+                    type="text"
+                    required
+                    value={emailOrUsername}
+                    onChange={(e) => setEmailOrUsername(e.target.value)}
+                    placeholder="Enter email or username"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] focus:ring-1 focus:ring-[#0095f6] transition-colors"
+                  />
+                </div>
+              </div>
 
-            {/* 2. Facebook */}
-            <button
-              type="button"
-              onClick={() => handleSignIn('facebook')}
-              disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] text-white text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50 group"
-            >
-              {/* Facebook Icon */}
-              <svg className="w-4 h-4 shrink-0 fill-white" viewBox="0 0 24 24">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-              </svg>
-              <span>
-                {isLoading && activeProvider === 'facebook'
-                  ? 'Connecting Facebook...'
-                  : 'Continue with Facebook'}
-              </span>
-            </button>
+              {/* Password */}
+              <div>
+                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] focus:ring-1 focus:ring-[#0095f6] transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-            {/* 3. X (Twitter) */}
-            <button
-              type="button"
-              onClick={() => handleSignIn('x')}
-              disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-[#000000] hover:bg-neutral-900 text-white text-xs font-bold border border-white/20 hover:border-white/40 flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md cursor-pointer disabled:opacity-50 group"
-            >
-              {/* X Icon */}
-              <svg className="w-4 h-4 shrink-0 fill-white" viewBox="0 0 24 24">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 23.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-              <span>
-                {isLoading && activeProvider === 'x' ? 'Connecting 𝕏...' : 'Continue with 𝕏'}
-              </span>
-            </button>
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading || !emailOrUsername.trim() || !password}
+                className="w-full py-3 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>{isLoading ? 'Verifying Account...' : 'Log In'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          )}
+
+          {/* 2. SIGN UP FORM */}
+          {mode === 'signup' && (
+            <form onSubmit={handleSignupSubmit} className="space-y-3">
+              {/* Full Name */}
+              <div>
+                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={signupFullName}
+                  onChange={(e) => setSignupFullName(e.target.value)}
+                  placeholder="e.g. Alex Rivera"
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                />
+              </div>
+
+              {/* Username */}
+              <div>
+                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={signupUsername}
+                  onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
+                  placeholder="e.g. alex.rivera"
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <input
+                    type="email"
+                    required
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                  Password (min 6 characters)
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    placeholder="Create a secure password"
+                    className="w-full pl-9 pr-10 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={
+                  isLoading ||
+                  !signupEmail.trim() ||
+                  !signupUsername.trim() ||
+                  !signupFullName.trim() ||
+                  signupPassword.length < 6
+                }
+                className="w-full py-3 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer flex items-center justify-center gap-2 mt-1"
+              >
+                <span>{isLoading ? 'Creating Account...' : 'Sign Up'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          )}
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 py-1">
+            <div className="flex-1 h-[1px] bg-white/10" />
+            <span className="text-[10px] font-bold tracking-wider text-neutral-400 uppercase">
+              OR
+            </span>
+            <div className="flex-1 h-[1px] bg-white/10" />
           </div>
 
-          {/* Custom Handle / Account Option */}
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveProvider('google');
-                setIsCustomModalOpen(true);
-              }}
-              className="text-xs font-semibold text-[#3897f0] hover:text-[#58a6ff] hover:underline cursor-pointer"
-            >
-              Sign in with custom Gmail, Facebook or 𝕏 handle
-            </button>
-          </div>
+          {/* Google OAuth Button */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>Continue with Google</span>
+          </button>
         </div>
 
         {/* Footer */}
         <footer className="text-center text-[11px] text-neutral-500 space-y-1">
           <p className="flex items-center justify-center gap-1 font-medium text-neutral-400">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Secure Authentication Powered by Lumira</span>
+            <span>Secure Password Protection Powered by Lumira</span>
           </p>
           <p>© 2026 Lumira from Lumira Labs</p>
         </footer>
       </div>
-
-      {/* Custom Account Modal */}
-      <Modal
-        isOpen={isCustomModalOpen}
-        onClose={() => setIsCustomModalOpen(false)}
-        title={
-          activeProvider === 'google'
-            ? 'Sign In with Google (Gmail)'
-            : activeProvider === 'x'
-            ? 'Sign In with 𝕏'
-            : 'Sign In with Facebook'
-        }
-        size="sm"
-      >
-        <form onSubmit={handleCustomSubmit} className="p-4 space-y-4 select-none bg-[var(--modal-bg)]">
-          {/* Provider Selector Tabs */}
-          <div className="flex items-center justify-center gap-2 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-xl">
-            {(['google', 'facebook', 'x'] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setActiveProvider(p)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors cursor-pointer ${
-                  activeProvider === p
-                    ? 'bg-[#0095f6] text-white shadow-sm'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {p === 'google' ? 'Gmail' : p === 'x' ? '𝕏' : 'Facebook'}
-              </button>
-            ))}
-          </div>
-
-          {/* Inputs */}
-          <div className="space-y-2">
-            <div>
-              <label className="text-[11px] font-bold text-[var(--text-secondary)]">
-                {activeProvider === 'google'
-                  ? 'Your Gmail Address'
-                  : activeProvider === 'x'
-                  ? 'Your 𝕏 Username / Handle'
-                  : 'Your Facebook Name or Email'}
-              </label>
-              <input
-                type="text"
-                value={customInput}
-                onChange={(e) => setCustomInput(e.target.value)}
-                placeholder={
-                  activeProvider === 'google'
-                    ? 'example@gmail.com'
-                    : activeProvider === 'x'
-                    ? '@yourusername'
-                    : 'Your Name'
-                }
-                className="w-full mt-1 p-2.5 rounded-xl bg-[var(--input-bg)] text-xs text-[var(--text-primary)] border border-[var(--border-color)] focus:outline-none"
-                required
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-[var(--text-secondary)]">Display Name (Optional)</label>
-              <input
-                type="text"
-                value={customDisplayName}
-                onChange={(e) => setCustomDisplayName(e.target.value)}
-                placeholder="e.g. Your Real Name"
-                className="w-full mt-1 p-2.5 rounded-xl bg-[var(--input-bg)] text-xs text-[var(--text-primary)] border border-[var(--border-color)] focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
-            <button
-              type="button"
-              onClick={() => setIsCustomModalOpen(false)}
-              className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!customInput.trim() || isLoading}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all shadow cursor-pointer"
-            >
-              <span>{isLoading ? 'Connecting...' : 'Continue'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

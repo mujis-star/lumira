@@ -19,7 +19,7 @@ interface AuthContextType {
   savedAccounts: UserProfile[];
   isLoading: boolean;
   isFirebaseActive: boolean;
-  login: (email: string, pass: string) => Promise<boolean>;
+  login: (emailOrUsername: string, pass: string) => Promise<boolean>;
   loginWithGoogle: (email?: string, name?: string) => Promise<boolean>;
   loginWithFacebook: (nameOrEmail?: string) => Promise<boolean>;
   loginWithX: (handle?: string, name?: string) => Promise<boolean>;
@@ -38,11 +38,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const USERS_STORAGE_KEY = 'lumira-v2-users';
 const CURRENT_USER_ID_KEY = 'lumira-v2-current-user-id';
 const SAVED_ACCOUNTS_KEY = 'lumira-v2-device-accounts';
+const CREDENTIALS_STORAGE_KEY = 'lumira-v2-credentials';
+
+// Default password for seed accounts
+const DEFAULT_SEED_PASSWORD = 'lumira123';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<UserProfile[]>(SEED_USERS);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [savedAccountIds, setSavedAccountIds] = useState<string[]>([]);
+  const [credentials, setCredentials] = useState<Record<string, string>>({
+    'user-admin': DEFAULT_SEED_PASSWORD,
+    'user-elena': DEFAULT_SEED_PASSWORD,
+    'user-marcus': DEFAULT_SEED_PASSWORD,
+    'user-aria': DEFAULT_SEED_PASSWORD,
+    'user-kai': DEFAULT_SEED_PASSWORD,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const isFirebaseActive = isFirebaseConfigured();
 
@@ -53,15 +64,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
         const storedCurrentUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
         const storedSavedAccounts = localStorage.getItem(SAVED_ACCOUNTS_KEY);
+        const storedCredentials = localStorage.getItem(CREDENTIALS_STORAGE_KEY);
 
         let parsedUsers: UserProfile[] = SEED_USERS;
         if (storedUsers) {
           try {
             parsedUsers = JSON.parse(storedUsers);
             setUsers(parsedUsers);
-          } catch {
-            // fallback
-          }
+          } catch {}
+        }
+
+        if (storedCredentials) {
+          try {
+            setCredentials(JSON.parse(storedCredentials));
+          } catch {}
         }
 
         if (storedCurrentUserId) {
@@ -72,7 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setCurrentUser(null);
           }
         } else {
-          // Unauthenticated visitor
           setCurrentUser(null);
         }
 
@@ -155,6 +170,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const persistCredentials = (updated: Record<string, string>) => {
+    setCredentials(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(updated));
+    }
+  };
+
   const switchPersona = (userId: string) => {
     const target = users.find((u) => u.id === userId);
     if (target) {
@@ -166,54 +188,138 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, pass: string): Promise<boolean> => {
+  // SECURE LOGIN: Validates user exists and checks password
+  const login = async (emailOrUsername: string, pass: string): Promise<boolean> => {
+    if (!emailOrUsername.trim() || !pass) {
+      throw new Error('Please enter both email/username and password.');
+    }
+
     if (isFirebaseActive && firebaseAuth) {
       try {
-        await signInWithEmailAndPassword(firebaseAuth, email, pass);
+        await signInWithEmailAndPassword(firebaseAuth, emailOrUsername.trim(), pass);
         return true;
-      } catch (err) {
-        console.error('Firebase sign in error:', err);
-        return false;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Invalid credentials';
+        throw new Error(msg.includes('user-not-found') ? 'No account found with this email. Please sign up.' : msg.includes('wrong-password') ? 'Incorrect password. Please try again.' : msg);
       }
-    } else {
-      const found = users.find(
-        (u) =>
-          u.email?.toLowerCase() === email.toLowerCase() ||
-          u.username.toLowerCase() === email.toLowerCase()
-      );
-      if (found) {
-        setCurrentUser(found);
-        rememberAccount(found.id);
-        persistUsers(users, found);
-        return true;
-      } else {
-        const namePart = email.split('@')[0];
-        const newDemoUser: UserProfile = {
-          id: `user-${Date.now()}`,
-          username: namePart.toLowerCase().replace(/[^a-z0-9_.]/g, ''),
-          displayName: namePart.charAt(0).toUpperCase() + namePart.slice(1),
-          email,
-          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
-          bio: 'Visual enthusiast on Lumira ✦',
+    }
+
+    // Local verified credential check
+    const query = emailOrUsername.trim().toLowerCase();
+    const found = users.find(
+      (u) =>
+        u.email?.toLowerCase() === query ||
+        u.username.toLowerCase() === query
+    );
+
+    if (!found) {
+      throw new Error('No account found with this email or username. Please sign up first.');
+    }
+
+    const expectedPassword = credentials[found.id] || DEFAULT_SEED_PASSWORD;
+    if (pass !== expectedPassword) {
+      throw new Error('Incorrect password. Please verify and try again.');
+    }
+
+    setCurrentUser(found);
+    rememberAccount(found.id);
+    persistUsers(users, found);
+    return true;
+  };
+
+  // SECURE SIGNUP: Validates inputs, prevents duplicates, saves password
+  const signup = async (
+    email: string,
+    pass: string,
+    username: string,
+    name: string
+  ): Promise<boolean> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
+    const cleanName = name.trim();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Please provide a valid email address.');
+    }
+    if (!cleanUsername || cleanUsername.length < 3) {
+      throw new Error('Username must be at least 3 characters.');
+    }
+    if (!pass || pass.length < 6) {
+      throw new Error('Password must be at least 6 characters.');
+    }
+    if (!cleanName) {
+      throw new Error('Please provide your full name.');
+    }
+
+    // Check duplicate email
+    if (users.some((u) => u.email?.toLowerCase() === cleanEmail)) {
+      throw new Error('An account with this email already exists. Please log in.');
+    }
+
+    // Check duplicate username
+    if (users.some((u) => u.username.toLowerCase() === cleanUsername)) {
+      throw new Error('This username is already taken. Please choose another.');
+    }
+
+    if (isFirebaseActive && firebaseAuth) {
+      try {
+        const cred = await createUserWithEmailAndPassword(firebaseAuth, cleanEmail, pass);
+        const newUser: UserProfile = {
+          id: cred.user.uid,
+          username: cleanUsername,
+          displayName: cleanName,
+          email: cleanEmail,
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanUsername}`,
+          bio: 'Visual storyteller exploring Lumira ✦',
           followersCount: 0,
-          followingCount: 3,
+          followingCount: 2,
           postsCount: 0,
-          sparksCount: 150,
+          sparksCount: 200,
           followers: [],
           following: ['user-admin', 'user-elena', 'user-marcus'],
           createdAt: new Date().toISOString(),
         };
-        const updated = [newDemoUser, ...users];
-        setCurrentUser(newDemoUser);
-        rememberAccount(newDemoUser.id);
-        persistUsers(updated, newDemoUser);
+        const updated = [newUser, ...users];
+        setCurrentUser(newUser);
+        rememberAccount(newUser.id);
+        persistUsers(updated, newUser);
         return true;
+      } catch (err: unknown) {
+        throw new Error(err instanceof Error ? err.message : 'Registration failed.');
       }
     }
+
+    // Local secure user creation
+    const newUserId = `user-${Date.now()}`;
+    const newUser: UserProfile = {
+      id: newUserId,
+      username: cleanUsername,
+      displayName: cleanName,
+      email: cleanEmail,
+      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanUsername}`,
+      bio: 'Visual storyteller exploring Lumira ✦',
+      website: `https://lumira.app/${cleanUsername}`,
+      followersCount: 0,
+      followingCount: 3,
+      postsCount: 0,
+      sparksCount: 200,
+      followers: [],
+      following: ['user-admin', 'user-elena', 'user-marcus'],
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedUsers = [newUser, ...users];
+    const updatedCreds = { ...credentials, [newUserId]: pass };
+
+    persistCredentials(updatedCreds);
+    setCurrentUser(newUser);
+    rememberAccount(newUser.id);
+    persistUsers(updatedUsers, newUser);
+    return true;
   };
 
-  const loginWithGoogle = async (email?: string, name?: string): Promise<boolean> => {
-    // 1. Try Firebase Google Popup if Firebase is initialized
+  // Google OAuth with Firebase or real popup
+  const loginWithGoogle = async (): Promise<boolean> => {
     if (isFirebaseActive && firebaseAuth) {
       try {
         const provider = new GoogleAuthProvider();
@@ -257,184 +363,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err: unknown) {
-        console.warn('Firebase Google popup sign in failed or closed:', err);
-        if (!email) {
-          return false;
-        }
+        throw new Error(err instanceof Error ? err.message : 'Google sign-in was cancelled or failed.');
       }
     }
 
-    // 2. Direct / Custom Google Sign-In with user's genuine email
-    if (!email) return false;
-
-    const targetEmail = email.trim().toLowerCase();
-    const existing = users.find((u) => u.email?.toLowerCase() === targetEmail);
-    if (existing) {
-      setCurrentUser(existing);
-      rememberAccount(existing.id);
-      persistUsers(users, existing);
-      return true;
-    }
-
-    const namePart = targetEmail.split('@')[0].replace(/[^a-z0-9_.]/g, '') || 'google_user';
-    const newGoogleUser: UserProfile = {
-      id: `user-google-${Date.now()}`,
-      username: namePart,
-      displayName: name?.trim() || namePart.charAt(0).toUpperCase() + namePart.slice(1),
-      email: targetEmail,
-      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
-      bio: 'Visual creator on Lumira ✦ Connected via Google (Gmail)',
-      website: 'https://lumira.app',
-      followersCount: 0,
-      followingCount: 3,
-      postsCount: 0,
-      sparksCount: 150,
-      followers: [],
-      following: ['user-admin', 'user-elena', 'user-marcus'],
-      createdAt: new Date().toISOString(),
-    };
-
-    const updated = [newGoogleUser, ...users];
-    setCurrentUser(newGoogleUser);
-    rememberAccount(newGoogleUser.id);
-    persistUsers(updated, newGoogleUser);
-    return true;
+    throw new Error('Google OAuth requires Firebase authentication configuration on your domain. Please use Email & Password Sign Up / Log In below.');
   };
 
-  const loginWithFacebook = async (nameOrEmail?: string): Promise<boolean> => {
-    if (!nameOrEmail) return false;
-
-    const raw = nameOrEmail.trim().toLowerCase();
-    const cleanName = raw.includes('@') ? raw.split('@')[0] : raw;
-    const username = cleanName.replace(/[^a-z0-9_.]/g, '') || 'facebook_creator';
-    const email = raw.includes('@') ? raw : `${username}@facebook.com`;
-
-    const existing = users.find((u) => u.username === username || u.email?.toLowerCase() === email);
-    if (existing) {
-      setCurrentUser(existing);
-      rememberAccount(existing.id);
-      persistUsers(users, existing);
-      return true;
-    }
-
-    const newFacebookUser: UserProfile = {
-      id: `user-fb-${Date.now()}`,
-      username,
-      displayName: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
-      email,
-      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-      bio: 'Explorer & artist ✦ Connected via Facebook',
-      website: 'https://lumira.app',
-      followersCount: 0,
-      followingCount: 3,
-      postsCount: 0,
-      sparksCount: 150,
-      followers: [],
-      following: ['user-admin', 'user-elena', 'user-aria'],
-      createdAt: new Date().toISOString(),
-    };
-
-    const updated = [newFacebookUser, ...users];
-    setCurrentUser(newFacebookUser);
-    rememberAccount(newFacebookUser.id);
-    persistUsers(updated, newFacebookUser);
-    return true;
+  const loginWithFacebook = async (): Promise<boolean> => {
+    throw new Error('Facebook OAuth requires Meta Developer App credentials. Please use Email & Password Sign Up / Log In below.');
   };
 
-  const loginWithX = async (handle?: string, name?: string): Promise<boolean> => {
-    if (!handle) return false;
-
-    const rawHandle = handle.trim().replace(/^@/, '').toLowerCase();
-    const username = rawHandle.replace(/[^a-z0-9_.]/g, '') || 'x_creator';
-    const email = `${username}@x.com`;
-
-    const existing = users.find((u) => u.username === username || u.email?.toLowerCase() === email);
-    if (existing) {
-      setCurrentUser(existing);
-      rememberAccount(existing.id);
-      persistUsers(users, existing);
-      return true;
-    }
-
-    const newXUser: UserProfile = {
-      id: `user-x-${Date.now()}`,
-      username,
-      displayName: name?.trim() || username.charAt(0).toUpperCase() + username.slice(1),
-      email,
-      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-      bio: 'Digital nomad & story builder ✦ Connected via 𝕏',
-      website: `https://x.com/${username}`,
-      followersCount: 0,
-      followingCount: 3,
-      postsCount: 0,
-      sparksCount: 150,
-      followers: [],
-      following: ['user-admin', 'user-elena', 'user-kai'],
-      createdAt: new Date().toISOString(),
-    };
-
-    const updated = [newXUser, ...users];
-    setCurrentUser(newXUser);
-    rememberAccount(newXUser.id);
-    persistUsers(updated, newXUser);
-    return true;
-  };
-
-  const signup = async (
-    email: string,
-    pass: string,
-    username: string,
-    name: string
-  ): Promise<boolean> => {
-    if (isFirebaseActive && firebaseAuth) {
-      try {
-        const cred = await createUserWithEmailAndPassword(firebaseAuth, email, pass);
-        const newUser: UserProfile = {
-          id: cred.user.uid,
-          username: username.toLowerCase().replace(/[^a-z0-9_.]/g, ''),
-          displayName: name,
-          email,
-          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-          bio: 'Visual storyteller exploring Lumira ✦',
-          followersCount: 0,
-          followingCount: 2,
-          postsCount: 0,
-          sparksCount: 200,
-          followers: [],
-          following: ['user-admin', 'user-elena', 'user-marcus'],
-          createdAt: new Date().toISOString(),
-        };
-        const updated = [newUser, ...users];
-        setCurrentUser(newUser);
-        rememberAccount(newUser.id);
-        persistUsers(updated, newUser);
-        return true;
-      } catch (err) {
-        console.error('Firebase sign up error:', err);
-        return false;
-      }
-    } else {
-      const newUser: UserProfile = {
-        id: `user-${Date.now()}`,
-        username: username.toLowerCase().replace(/[^a-z0-9_.]/g, ''),
-        displayName: name,
-        email,
-        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-        bio: 'Visual storyteller exploring Lumira ✦',
-        followersCount: 0,
-        followingCount: 2,
-        postsCount: 0,
-        sparksCount: 200,
-        followers: [],
-        following: ['user-admin', 'user-elena', 'user-marcus'],
-        createdAt: new Date().toISOString(),
-      };
-      const updated = [newUser, ...users];
-      setCurrentUser(newUser);
-      rememberAccount(newUser.id);
-      persistUsers(updated, newUser);
-      return true;
-    }
+  const loginWithX = async (): Promise<boolean> => {
+    throw new Error('𝕏 OAuth requires X Developer API credentials. Please use Email & Password Sign Up / Log In below.');
   };
 
   const logout = async () => {
@@ -469,7 +410,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isCurrentlyFollowing = currentUser.following.includes(targetUserId);
 
-    // Update currentUser
     const updatedFollowing = isCurrentlyFollowing
       ? currentUser.following.filter((id) => id !== targetUserId)
       : [...currentUser.following, targetUserId];
@@ -480,7 +420,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       followingCount: updatedFollowing.length,
     };
 
-    // Update targetUser
     const targetUser = users.find((u) => u.id === targetUserId);
     if (!targetUser) return;
 
