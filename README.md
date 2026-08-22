@@ -158,3 +158,4 @@ Deploy security rules:
 ```bash
 firebase deploy --only firestore:rules,storage
 ```
+"# lumira" 
