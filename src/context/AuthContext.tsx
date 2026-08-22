@@ -153,11 +153,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const syncUsersInterval = setInterval(() => {
+      fetch('/api/sync')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.users && Array.isArray(data.users)) {
+            setUsers((prev) => {
+              const prevMap = new Map(prev.map((u) => [u.id, u]));
+              let hasChanges = false;
+              for (const serverUser of data.users) {
+                const local = prevMap.get(serverUser.id);
+                if (!local || local.followersCount !== serverUser.followersCount || local.followingCount !== serverUser.followingCount) {
+                  prevMap.set(serverUser.id, serverUser);
+                  hasChanges = true;
+                }
+              }
+              if (hasChanges) {
+                const merged = Array.from(prevMap.values());
+                try { localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged)); } catch {}
+                return merged;
+              }
+              return prev;
+            });
+          }
+        })
+        .catch(() => {});
+    }, 2500);
+
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
       clearTimeout(timer);
       window.removeEventListener('storage', handleStorageChange);
+      clearInterval(syncUsersInterval);
     };
   }, []);
 
@@ -516,6 +544,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setCurrentUser(updatedCurrentUser);
     persistUsers(updatedUsers, updatedCurrentUser);
+
+    // Broadcast follow status to server for real-time sync
+    fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'toggle_follow',
+        payload: {
+          currentUserId: currentUser.id,
+          targetUserId,
+        },
+      }),
+    }).catch(() => {});
   };
 
   const isFollowing = (targetUserId: string) => {

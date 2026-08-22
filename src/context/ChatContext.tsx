@@ -81,8 +81,53 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Live cross-client sync polling every 2 seconds
+    const syncInterval = setInterval(() => {
+      fetch('/api/sync')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.messages && typeof data.messages === 'object') {
+            setMessages((prevMsgs) => {
+              let hasChanges = false;
+              const merged = { ...prevMsgs };
+              for (const [convId, serverMsgList] of Object.entries(data.messages)) {
+                const currentList = merged[convId] || [];
+                const currentIds = new Set(currentList.map((m: Message) => m.id));
+                const newItems = (serverMsgList as Message[]).filter((m: Message) => !currentIds.has(m.id));
+                if (newItems.length > 0) {
+                  merged[convId] = [...currentList, ...newItems];
+                  hasChanges = true;
+                }
+              }
+              if (hasChanges) {
+                try { localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(merged)); } catch {}
+                return merged;
+              }
+              return prevMsgs;
+            });
+          }
+
+          if (data?.conversations && Array.isArray(data.conversations)) {
+            setConversations((prevConvs) => {
+              const currentIds = new Set(prevConvs.map((c) => c.id));
+              const missingConvs = data.conversations.filter((c: Conversation) => !currentIds.has(c.id));
+              if (missingConvs.length > 0) {
+                const merged = [...missingConvs, ...prevConvs];
+                try { localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(merged)); } catch {}
+                return merged;
+              }
+              return prevConvs;
+            });
+          }
+        })
+        .catch(() => {});
+    }, 2000);
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(syncInterval);
+    };
   }, []);
 
   const persistConversations = useCallback((updated: Conversation[]) => {
@@ -320,6 +365,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     });
 
     sounds.playSend();
+
+    // Broadcast to server for real-time multi-window sync
+    fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'send_message',
+        payload: {
+          convId,
+          message: newMessage,
+          receiverId: targetReceiverId,
+          sender: currentUser,
+        },
+      }),
+    }).catch(() => {});
   }, [currentUser, conversations, startDirectMessage, persistMessages, persistConversations]);
 
   const addMessageReaction = useCallback((messageId: string, emoji: string) => {
