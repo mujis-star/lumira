@@ -18,8 +18,12 @@ export function GoogleSignInModal({
   onSelectAccount,
   savedAccounts,
 }: GoogleSignInModalProps) {
+  const validSavedAccounts = savedAccounts.filter((acc): acc is UserProfile & { email: string } => !!acc.email);
+  
   // Step: 'choose' | 'email' | 'password'
-  const [step, setStep] = useState<'choose' | 'email' | 'password'>('choose');
+  const [step, setStep] = useState<'choose' | 'email' | 'password'>(
+    validSavedAccounts.length > 0 ? 'choose' : 'email'
+  );
   const [emailInput, setEmailInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -132,35 +136,9 @@ export function GoogleSignInModal({
 
               {/* Accounts List Container */}
               <div className="border-t border-b border-[#3c4043] divide-y divide-[#3c4043]">
-                {/* Default Featured Account: Mujeeb Rahman */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAccountClick('mujee00012@gmail.com', 'Mujeeb Rahman', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80')
-                  }
-                  className="w-full flex items-center gap-3.5 py-3.5 px-2 hover:bg-[#282a2d] rounded-xl transition-colors text-left cursor-pointer group"
-                >
-                  <div className="relative w-9 h-9 rounded-full overflow-hidden bg-purple-700 ring-1 ring-white/10 shrink-0">
-                    <Image
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80"
-                      alt="Mujeeb Rahman"
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-[#e3e3e3] group-hover:text-white truncate">
-                      Mujeeb Rahman
-                    </p>
-                    <p className="text-[11px] text-[#9aa0a6] truncate">mujee00012@gmail.com</p>
-                  </div>
-                </button>
-
-                {/* Other Saved Accounts */}
+                {/* Real Saved Accounts on this Device */}
                 {savedAccounts
-                  .filter((acc): acc is UserProfile & { email: string } => !!acc.email && acc.email !== 'mujee00012@gmail.com')
-                  .slice(0, 3)
+                  .filter((acc): acc is UserProfile & { email: string } => !!acc.email)
                   .map((acc) => (
                     <button
                       key={acc.id}
