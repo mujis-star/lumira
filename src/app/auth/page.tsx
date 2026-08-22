@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -10,7 +10,7 @@ import { ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
-  const { loginWithGoogle, loginWithFacebook, loginWithX } = useAuth();
+  const { currentUser, isLoading: isAuthLoading, loginWithGoogle, loginWithFacebook, loginWithX } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [activeProvider, setActiveProvider] = useState<'google' | 'facebook' | 'x' | null>(null);
@@ -21,33 +21,39 @@ export default function AuthPage() {
   const [customInput, setCustomInput] = useState('');
   const [customDisplayName, setCustomDisplayName] = useState('');
 
+  // If already authenticated, redirect to home feed
+  useEffect(() => {
+    if (!isAuthLoading && currentUser) {
+      router.replace('/');
+    }
+  }, [currentUser, isAuthLoading, router]);
+
   const handleSignIn = async (provider: 'google' | 'facebook' | 'x') => {
     setError(null);
     setActiveProvider(provider);
     setIsLoading(true);
 
     try {
-      let success = false;
       if (provider === 'google') {
-        success = await loginWithGoogle();
-      } else if (provider === 'facebook') {
-        success = await loginWithFacebook();
-      } else if (provider === 'x') {
-        success = await loginWithX();
-      }
-
-      if (success) {
-        sounds.playSend();
-        triggerConfetti(0.5, 0.5);
-        router.push('/');
+        // Attempt Firebase Google popup first
+        const success = await loginWithGoogle();
+        if (success) {
+          sounds.playSend();
+          triggerConfetti(0.5, 0.5);
+          router.push('/');
+          return;
+        } else {
+          // If popup is not active or cancelled, open the Gmail prompt modal
+          setIsCustomModalOpen(true);
+        }
       } else {
-        setError(`Failed to sign in with ${provider}. Please try again.`);
+        // Facebook & 𝕏 prompt
+        setIsCustomModalOpen(true);
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Sign in failed');
+    } catch {
+      setIsCustomModalOpen(true);
     } finally {
       setIsLoading(false);
-      setActiveProvider(null);
     }
   };
 
@@ -56,15 +62,17 @@ export default function AuthPage() {
     if (!customInput.trim() || !activeProvider) return;
 
     setIsLoading(true);
+    setError(null);
+
     try {
       let success = false;
       if (activeProvider === 'google') {
-        const email = customInput.includes('@') ? customInput : `${customInput}@gmail.com`;
+        const email = customInput.includes('@') ? customInput.trim() : `${customInput.trim()}@gmail.com`;
         success = await loginWithGoogle(email, customDisplayName);
       } else if (activeProvider === 'facebook') {
-        success = await loginWithFacebook(customInput);
+        success = await loginWithFacebook(customInput.trim());
       } else if (activeProvider === 'x') {
-        success = await loginWithX(customInput, customDisplayName);
+        success = await loginWithX(customInput.trim(), customDisplayName);
       }
 
       if (success) {
@@ -72,9 +80,11 @@ export default function AuthPage() {
         sounds.playSend();
         triggerConfetti(0.5, 0.5);
         router.push('/');
+      } else {
+        setError('Authentication failed. Please check your credentials.');
       }
-    } catch {
-      setError('Custom login failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {
       setIsLoading(false);
     }
@@ -217,7 +227,13 @@ export default function AuthPage() {
       <Modal
         isOpen={isCustomModalOpen}
         onClose={() => setIsCustomModalOpen(false)}
-        title="Custom Social Sign-In"
+        title={
+          activeProvider === 'google'
+            ? 'Sign In with Google (Gmail)'
+            : activeProvider === 'x'
+            ? 'Sign In with 𝕏'
+            : 'Sign In with Facebook'
+        }
         size="sm"
       >
         <form onSubmit={handleCustomSubmit} className="p-4 space-y-4 select-none bg-[var(--modal-bg)]">
@@ -244,10 +260,10 @@ export default function AuthPage() {
             <div>
               <label className="text-[11px] font-bold text-[var(--text-secondary)]">
                 {activeProvider === 'google'
-                  ? 'Gmail Address'
+                  ? 'Your Gmail Address'
                   : activeProvider === 'x'
-                  ? '𝕏 Username / Handle'
-                  : 'Facebook Name / Email'}
+                  ? 'Your 𝕏 Username / Handle'
+                  : 'Your Facebook Name or Email'}
               </label>
               <input
                 type="text"
@@ -255,7 +271,7 @@ export default function AuthPage() {
                 onChange={(e) => setCustomInput(e.target.value)}
                 placeholder={
                   activeProvider === 'google'
-                    ? 'yourname@gmail.com'
+                    ? 'example@gmail.com'
                     : activeProvider === 'x'
                     ? '@yourusername'
                     : 'Your Name'
@@ -272,7 +288,7 @@ export default function AuthPage() {
                 type="text"
                 value={customDisplayName}
                 onChange={(e) => setCustomDisplayName(e.target.value)}
-                placeholder="e.g. Alex Rivera"
+                placeholder="e.g. Your Real Name"
                 className="w-full mt-1 p-2.5 rounded-xl bg-[var(--input-bg)] text-xs text-[var(--text-primary)] border border-[var(--border-color)] focus:outline-none"
               />
             </div>
@@ -291,7 +307,7 @@ export default function AuthPage() {
               disabled={!customInput.trim() || isLoading}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all shadow cursor-pointer"
             >
-              <span>Sign In</span>
+              <span>{isLoading ? 'Connecting...' : 'Continue'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

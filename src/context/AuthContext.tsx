@@ -9,6 +9,8 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 
 interface AuthContextType {
@@ -38,55 +40,57 @@ const CURRENT_USER_ID_KEY = 'lumira-v2-current-user-id';
 const SAVED_ACCOUNTS_KEY = 'lumira-v2-device-accounts';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with seed data to guarantee 100% server-client hydration match
   const [users, setUsers] = useState<UserProfile[]>(SEED_USERS);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(SEED_USERS[0]);
-  const [savedAccountIds, setSavedAccountIds] = useState<string[]>([SEED_USERS[0].id]);
-  const [isLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [savedAccountIds, setSavedAccountIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const isFirebaseActive = isFirebaseConfigured();
 
   // Hydrate from localStorage asynchronously after initial hydration
   useEffect(() => {
-    try {
-      const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-      const storedCurrentUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
-      const storedSavedAccounts = localStorage.getItem(SAVED_ACCOUNTS_KEY);
+    const timer = setTimeout(() => {
+      try {
+        const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+        const storedCurrentUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
+        const storedSavedAccounts = localStorage.getItem(SAVED_ACCOUNTS_KEY);
 
-      if (storedUsers || storedCurrentUserId || storedSavedAccounts) {
-        setTimeout(() => {
-          let parsedUsers: UserProfile[] = SEED_USERS;
-          if (storedUsers) {
-            try {
-              parsedUsers = JSON.parse(storedUsers);
-              setUsers(parsedUsers);
-            } catch {
-              // fallback
-            }
+        let parsedUsers: UserProfile[] = SEED_USERS;
+        if (storedUsers) {
+          try {
+            parsedUsers = JSON.parse(storedUsers);
+            setUsers(parsedUsers);
+          } catch {
+            // fallback
           }
+        }
 
-          let activeUser: UserProfile = parsedUsers[0];
-          if (storedCurrentUserId) {
-            const found = parsedUsers.find((u: UserProfile) => u.id === storedCurrentUserId);
-            if (found) {
-              activeUser = found;
-              setCurrentUser(found);
-            }
-          }
-
-          if (storedSavedAccounts) {
-            try {
-              setSavedAccountIds(JSON.parse(storedSavedAccounts));
-            } catch {
-              setSavedAccountIds([activeUser.id]);
-            }
+        if (storedCurrentUserId) {
+          const found = parsedUsers.find((u: UserProfile) => u.id === storedCurrentUserId);
+          if (found) {
+            setCurrentUser(found);
           } else {
-            setSavedAccountIds([activeUser.id]);
+            setCurrentUser(null);
           }
-        }, 0);
+        } else {
+          // Unauthenticated visitor
+          setCurrentUser(null);
+        }
+
+        if (storedSavedAccounts) {
+          try {
+            setSavedAccountIds(JSON.parse(storedSavedAccounts));
+          } catch {
+            setSavedAccountIds([]);
+          }
+        }
+      } catch {
+        // fallback
+      } finally {
+        setIsLoading(false);
       }
-    } catch {
-      // fallback
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const rememberAccount = (userId: string) => {
@@ -105,18 +109,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isFirebaseActive && firebaseAuth) {
       const unsubscribe = onAuthStateChanged(firebaseAuth, (fbUser) => {
         if (fbUser) {
-          const existing = users.find((u) => u.email === fbUser.email);
+          const existing = users.find((u) => u.email?.toLowerCase() === fbUser.email?.toLowerCase());
           if (existing) {
             setCurrentUser(existing);
             rememberAccount(existing.id);
           } else {
+            const namePart = (fbUser.email?.split('@')[0] || 'creator').replace(/[^a-z0-9_.]/g, '');
             const newUser: UserProfile = {
               id: fbUser.uid,
-              username: fbUser.email?.split('@')[0] || 'lumira_user',
-              displayName: fbUser.displayName || 'Lumira Creator',
+              username: namePart || 'google_user',
+              displayName: fbUser.displayName || namePart,
               email: fbUser.email || '',
-              avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/shapes/svg?seed=${fbUser.uid}`,
-              bio: 'New explorer on Lumira ✦',
+              avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
+              bio: 'Visual explorer on Lumira ✦',
               followersCount: 0,
               followingCount: 0,
               postsCount: 0,
@@ -128,6 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUsers((prev) => [newUser, ...prev]);
             setCurrentUser(newUser);
             rememberAccount(newUser.id);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(CURRENT_USER_ID_KEY, newUser.id);
+            }
           }
         }
       });
@@ -141,6 +149,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
       if (current) {
         localStorage.setItem(CURRENT_USER_ID_KEY, current.id);
+      } else {
+        localStorage.removeItem(CURRENT_USER_ID_KEY);
       }
     }
   };
@@ -203,7 +213,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogle = async (email?: string, name?: string): Promise<boolean> => {
-    const targetEmail = (email?.trim() || 'alex.rivera@gmail.com').toLowerCase();
+    // 1. Try Firebase Google Popup if Firebase is initialized
+    if (isFirebaseActive && firebaseAuth) {
+      try {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const cred = await signInWithPopup(firebaseAuth, provider);
+        const fbUser = cred.user;
+        if (fbUser) {
+          const existing = users.find((u) => u.email?.toLowerCase() === fbUser.email?.toLowerCase());
+          if (existing) {
+            const updated = {
+              ...existing,
+              displayName: fbUser.displayName || existing.displayName,
+              avatarUrl: fbUser.photoURL || existing.avatarUrl,
+            };
+            setCurrentUser(updated);
+            rememberAccount(updated.id);
+            persistUsers(users.map((u) => (u.id === updated.id ? updated : u)), updated);
+            return true;
+          } else {
+            const namePart = (fbUser.email?.split('@')[0] || 'creator').replace(/[^a-z0-9_.]/g, '');
+            const newGoogleUser: UserProfile = {
+              id: fbUser.uid,
+              username: namePart || 'google_user',
+              displayName: fbUser.displayName || namePart,
+              email: fbUser.email || '',
+              avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
+              bio: 'Visual creator on Lumira ✦ Connected via Google',
+              followersCount: 0,
+              followingCount: 2,
+              postsCount: 0,
+              sparksCount: 150,
+              followers: [],
+              following: ['user-elena', 'user-marcus'],
+              createdAt: new Date().toISOString(),
+            };
+            const updatedUsers = [newGoogleUser, ...users];
+            setCurrentUser(newGoogleUser);
+            rememberAccount(newGoogleUser.id);
+            persistUsers(updatedUsers, newGoogleUser);
+            return true;
+          }
+        }
+      } catch (err: unknown) {
+        console.warn('Firebase Google popup sign in failed or closed:', err);
+        if (!email) {
+          return false;
+        }
+      }
+    }
+
+    // 2. Direct / Custom Google Sign-In with user's genuine email
+    if (!email) return false;
+
+    const targetEmail = email.trim().toLowerCase();
     const existing = users.find((u) => u.email?.toLowerCase() === targetEmail);
     if (existing) {
       setCurrentUser(existing);
@@ -212,22 +276,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     }
 
-    const namePart = targetEmail.split('@')[0];
-    const username = namePart.replace(/[^a-z0-9_.]/g, '') || 'google_creator';
+    const namePart = targetEmail.split('@')[0].replace(/[^a-z0-9_.]/g, '') || 'google_user';
     const newGoogleUser: UserProfile = {
       id: `user-google-${Date.now()}`,
-      username,
+      username: namePart,
       displayName: name?.trim() || namePart.charAt(0).toUpperCase() + namePart.slice(1),
       email: targetEmail,
-      avatarUrl:
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
-      bio: 'Visual creator & photographer ✦ Connected via Google (Gmail)',
+      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
+      bio: 'Visual creator on Lumira ✦ Connected via Google (Gmail)',
       website: 'https://lumira.app',
-      followersCount: 145,
-      followingCount: 68,
+      followersCount: 0,
+      followingCount: 3,
       postsCount: 0,
-      sparksCount: 250,
-      followers: ['user-elena', 'user-aria'],
+      sparksCount: 150,
+      followers: [],
       following: ['user-admin', 'user-elena', 'user-marcus'],
       createdAt: new Date().toISOString(),
     };
@@ -240,7 +302,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithFacebook = async (nameOrEmail?: string): Promise<boolean> => {
-    const raw = (nameOrEmail?.trim() || 'sarah.jenkins').toLowerCase();
+    if (!nameOrEmail) return false;
+
+    const raw = nameOrEmail.trim().toLowerCase();
     const cleanName = raw.includes('@') ? raw.split('@')[0] : raw;
     const username = cleanName.replace(/[^a-z0-9_.]/g, '') || 'facebook_creator';
     const email = raw.includes('@') ? raw : `${username}@facebook.com`;
@@ -258,15 +322,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username,
       displayName: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
       email,
-      avatarUrl:
-        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
       bio: 'Explorer & artist ✦ Connected via Facebook',
       website: 'https://lumira.app',
-      followersCount: 310,
-      followingCount: 140,
+      followersCount: 0,
+      followingCount: 3,
       postsCount: 0,
-      sparksCount: 300,
-      followers: ['user-elena', 'user-marcus'],
+      sparksCount: 150,
+      followers: [],
       following: ['user-admin', 'user-elena', 'user-aria'],
       createdAt: new Date().toISOString(),
     };
@@ -279,7 +342,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithX = async (handle?: string, name?: string): Promise<boolean> => {
-    const rawHandle = (handle?.trim() || 'neo_luminary').replace(/^@/, '').toLowerCase();
+    if (!handle) return false;
+
+    const rawHandle = handle.trim().replace(/^@/, '').toLowerCase();
     const username = rawHandle.replace(/[^a-z0-9_.]/g, '') || 'x_creator';
     const email = `${username}@x.com`;
 
@@ -296,15 +361,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username,
       displayName: name?.trim() || username.charAt(0).toUpperCase() + username.slice(1),
       email,
-      avatarUrl:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
       bio: 'Digital nomad & story builder ✦ Connected via 𝕏',
       website: `https://x.com/${username}`,
-      followersCount: 520,
-      followingCount: 210,
+      followersCount: 0,
+      followingCount: 3,
       postsCount: 0,
-      sparksCount: 400,
-      followers: ['user-admin', 'user-elena'],
+      sparksCount: 150,
+      followers: [],
       following: ['user-admin', 'user-elena', 'user-kai'],
       createdAt: new Date().toISOString(),
     };
@@ -375,7 +439,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     if (isFirebaseActive && firebaseAuth) {
-      await firebaseSignOut(firebaseAuth);
+      try {
+        await firebaseSignOut(firebaseAuth);
+      } catch {}
     }
     if (currentUser) {
       setSavedAccountIds((prev) => prev.filter((id) => id !== currentUser.id));
@@ -401,59 +467,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const toggleFollow = (targetUserId: string) => {
     if (!currentUser || currentUser.id === targetUserId) return;
 
-    const isFollowingTarget = currentUser.following.includes(targetUserId);
-    let updatedFollowing: string[];
-    let updatedTargetFollowers: string[];
+    const isCurrentlyFollowing = currentUser.following.includes(targetUserId);
 
-    const targetUser = users.find((u) => u.id === targetUserId);
-    if (!targetUser) return;
+    // Update currentUser
+    const updatedFollowing = isCurrentlyFollowing
+      ? currentUser.following.filter((id) => id !== targetUserId)
+      : [...currentUser.following, targetUserId];
 
-    if (isFollowingTarget) {
-      updatedFollowing = currentUser.following.filter((id) => id !== targetUserId);
-      updatedTargetFollowers = targetUser.followers.filter((id) => id !== currentUser.id);
-    } else {
-      updatedFollowing = [...currentUser.following, targetUserId];
-      updatedTargetFollowers = [...targetUser.followers, currentUser.id];
-    }
-
-    const updatedCurrent: UserProfile = {
+    const updatedCurrentUser: UserProfile = {
       ...currentUser,
       following: updatedFollowing,
       followingCount: updatedFollowing.length,
     };
 
-    const updatedTarget: UserProfile = {
+    // Update targetUser
+    const targetUser = users.find((u) => u.id === targetUserId);
+    if (!targetUser) return;
+
+    const updatedTargetFollowers = isCurrentlyFollowing
+      ? targetUser.followers.filter((id) => id !== currentUser.id)
+      : [...targetUser.followers, currentUser.id];
+
+    const updatedTargetUser: UserProfile = {
       ...targetUser,
       followers: updatedTargetFollowers,
       followersCount: updatedTargetFollowers.length,
     };
 
-    setCurrentUser(updatedCurrent);
     const updatedUsers = users.map((u) => {
-      if (u.id === currentUser.id) return updatedCurrent;
-      if (u.id === targetUserId) return updatedTarget;
+      if (u.id === currentUser.id) return updatedCurrentUser;
+      if (u.id === targetUserId) return updatedTargetUser;
       return u;
     });
 
-    persistUsers(updatedUsers, updatedCurrent);
+    setCurrentUser(updatedCurrentUser);
+    persistUsers(updatedUsers, updatedCurrentUser);
   };
 
-  const isFollowing = (targetUserId: string): boolean => {
-    if (!currentUser) return false;
-    return currentUser.following.includes(targetUserId);
+  const isFollowing = (targetUserId: string) => {
+    return !!currentUser?.following.includes(targetUserId);
   };
 
-  const getUserById = (userId: string) => users.find((u) => u.id === userId);
-  const getUserByUsername = (username: string) =>
-    users.find((u) => u.username.toLowerCase() === username.toLowerCase().replace('@', ''));
+  const getUserById = (userId: string) => {
+    return users.find((u) => u.id === userId);
+  };
+
+  const getUserByUsername = (username: string) => {
+    return users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+  };
 
   const savedAccounts = useMemo(() => {
-    const matched = users.filter((u) => savedAccountIds.includes(u.id));
-    if (currentUser && !matched.some((u) => u.id === currentUser.id)) {
-      return [currentUser, ...matched];
-    }
-    return matched.length > 0 ? matched : currentUser ? [currentUser] : [];
-  }, [users, savedAccountIds, currentUser]);
+    return users.filter((u) => savedAccountIds.includes(u.id));
+  }, [users, savedAccountIds]);
 
   return (
     <AuthContext.Provider
