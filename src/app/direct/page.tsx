@@ -210,70 +210,196 @@ export default function DirectMessagePage() {
               </button>
             </div>
 
-            {/* Conversation Threads */}
-            <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
-              {conversations
-                .filter((conv) => {
-                  if (currentFilterTab === 'channels') return conv.isGroup;
-                  if (currentFilterTab === 'requests') return false; // Clean requests view
-                  return true;
-                })
-                .map((conv) => {
-                const isSelected = conv.id === activeConversationId;
-                const other = conv.isGroup
-                  ? null
-                  : conv.participants.find((p) => p.id !== currentUser?.id);
+            {/* Conversation Threads / Search Results */}
+            <div className="flex-1 overflow-y-auto divide-y divide-[var(--glass-border-subtle)]">
+              {searchQuery.trim() ? (
+                /* SEARCH RESULTS VIEW */
+                <div className="space-y-4 py-2">
+                  {/* Matching Existing Conversations */}
+                  {conversations.filter((conv) => {
+                    const q = searchQuery.toLowerCase().trim();
+                    if (conv.isGroup && conv.groupName?.toLowerCase().includes(q)) return true;
+                    const other = conv.participants.find((p) => p.id !== currentUser?.id);
+                    if (other && (other.username.toLowerCase().includes(q) || other.displayName.toLowerCase().includes(q))) return true;
+                    if (conv.lastMessage?.content?.toLowerCase().includes(q)) return true;
+                    return false;
+                  }).length > 0 && (
+                    <div>
+                      <p className="px-4 py-1.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                        Conversations
+                      </p>
+                      <div className="divide-y divide-[var(--glass-border-subtle)]">
+                        {conversations
+                          .filter((conv) => {
+                            const q = searchQuery.toLowerCase().trim();
+                            if (conv.isGroup && conv.groupName?.toLowerCase().includes(q)) return true;
+                            const other = conv.participants.find((p) => p.id !== currentUser?.id);
+                            if (other && (other.username.toLowerCase().includes(q) || other.displayName.toLowerCase().includes(q))) return true;
+                            if (conv.lastMessage?.content?.toLowerCase().includes(q)) return true;
+                            return false;
+                          })
+                          .map((conv) => {
+                            const isSelected = conv.id === activeConversationId;
+                            const other = conv.isGroup
+                              ? null
+                              : conv.participants.find((p) => p.id !== currentUser?.id);
 
-                return (
-                  <div
-                    key={conv.id}
-                    onClick={() => setActiveConversationId(conv.id)}
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
-                      isSelected
-                        ? 'bg-neutral-100 dark:bg-neutral-800/60'
-                        : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/30'
-                    }`}
-                  >
-                    {conv.isGroup ? (
-                      <div className="relative w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-                        <Users className="w-6 h-6" />
-                      </div>
-                    ) : other ? (
-                      <div className="relative shrink-0">
-                        <Avatar src={other.avatarUrl} alt={other.displayName} size="md" isVerified={other.isVerified} />
-                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#10b981] ring-2 ring-[var(--bg-primary)]" />
-                      </div>
-                    ) : null}
+                            return (
+                              <div
+                                key={conv.id}
+                                onClick={() => setActiveConversationId(conv.id)}
+                                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? 'bg-[var(--glass-bg-hover)]'
+                                    : 'hover:bg-[var(--glass-bg-hover)]/50'
+                                }`}
+                              >
+                                {conv.isGroup ? (
+                                  <div className="relative w-11 h-11 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+                                    <Users className="w-5 h-5" />
+                                  </div>
+                                ) : other ? (
+                                  <Avatar src={other.avatarUrl} alt={other.displayName} size="md" isVerified={other.isVerified} />
+                                ) : null}
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                          {conv.isGroup ? conv.groupName : other?.username}
-                        </p>
-                        {conv.isGroup && (
-                          <span className="text-[10px] text-blue-500 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded">
-                            Group
-                          </span>
-                        )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                                    {conv.isGroup ? conv.groupName : other?.displayName || other?.username}
+                                  </p>
+                                  <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                                    @{conv.isGroup ? 'group' : other?.username} • {conv.lastMessage?.content || 'Chat'}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
                       </div>
+                    </div>
+                  )}
 
-                      <p
-                        className={`text-[11px] truncate ${
-                          conv.unreadCount > 0
-                            ? 'font-bold text-[var(--text-primary)]'
-                            : 'text-[var(--text-secondary)]'
-                        }`}
-                      >
-                        {conv.lastMessage?.content || 'Started a conversation'} • {formatTimeAgo(conv.updatedAt)}
+                  {/* Matching Registered Accounts */}
+                  {filteredUsers.length > 0 && (
+                    <div>
+                      <p className="px-4 py-1.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                        People ({filteredUsers.length})
+                      </p>
+                      <div className="divide-y divide-[var(--glass-border-subtle)]">
+                        {filteredUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            onClick={() => {
+                              startDirectMessage(user.id);
+                            }}
+                            className="flex items-center justify-between px-4 py-3 hover:bg-[var(--glass-bg-hover)] cursor-pointer transition-colors group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <Avatar src={user.avatarUrl} alt={user.displayName} size="md" isVerified={user.isVerified} />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-blue)] transition-colors">
+                                  {user.displayName}
+                                </p>
+                                <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                                  @{user.username}
+                                </p>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="px-3.5 py-1.5 rounded-xl bg-[var(--accent-blue)] text-white text-[11px] font-bold shadow-xs shrink-0 ml-2 cursor-pointer group-hover:bg-[var(--accent-blue-hover)] active:scale-95 transition-all"
+                            >
+                              Chat
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Results Fallback */}
+                  {conversations.filter((conv) => {
+                    const q = searchQuery.toLowerCase().trim();
+                    if (conv.isGroup && conv.groupName?.toLowerCase().includes(q)) return true;
+                    const other = conv.participants.find((p) => p.id !== currentUser?.id);
+                    if (other && (other.username.toLowerCase().includes(q) || other.displayName.toLowerCase().includes(q))) return true;
+                    if (conv.lastMessage?.content?.toLowerCase().includes(q)) return true;
+                    return false;
+                  }).length === 0 && filteredUsers.length === 0 && (
+                    <div className="py-12 px-4 text-center space-y-2">
+                      <p className="text-xs font-bold text-[var(--text-primary)]">
+                        No accounts or messages matching &ldquo;{searchQuery}&rdquo;
+                      </p>
+                      <p className="text-[11px] text-[var(--text-secondary)]">
+                        Try searching for usernames like &quot;admin&quot;, &quot;elena&quot;, or &quot;marcus&quot;.
                       </p>
                     </div>
+                  )}
+                </div>
+              ) : (
+                /* REGULAR CONVERSATIONS LIST */
+                conversations
+                  .filter((conv) => {
+                    if (currentFilterTab === 'channels') return conv.isGroup;
+                    if (currentFilterTab === 'requests') return false; // Clean requests view
+                    return true;
+                  })
+                  .map((conv) => {
+                    const isSelected = conv.id === activeConversationId;
+                    const other = conv.isGroup
+                      ? null
+                      : conv.participants.find((p) => p.id !== currentUser?.id);
 
-                    {conv.unreadCount > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
-                    )}
-                  </div>
-                );
-              })}
+                    return (
+                      <div
+                        key={conv.id}
+                        onClick={() => setActiveConversationId(conv.id)}
+                        className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-[var(--glass-bg-hover)]'
+                            : 'hover:bg-[var(--glass-bg-hover)]/40'
+                        }`}
+                      >
+                        {conv.isGroup ? (
+                          <div className="relative w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+                            <Users className="w-6 h-6" />
+                          </div>
+                        ) : other ? (
+                          <div className="relative shrink-0">
+                            <Avatar src={other.avatarUrl} alt={other.displayName} size="md" isVerified={other.isVerified} />
+                            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#10b981] ring-2 ring-[var(--bg-primary)]" />
+                          </div>
+                        ) : null}
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                              {conv.isGroup ? conv.groupName : other?.username}
+                            </p>
+                            {conv.isGroup && (
+                              <span className="text-[10px] text-blue-500 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded">
+                                Group
+                              </span>
+                            )}
+                          </div>
+
+                          <p
+                            className={`text-[11px] truncate ${
+                              conv.unreadCount > 0
+                                ? 'font-bold text-[var(--text-primary)]'
+                                : 'text-[var(--text-secondary)]'
+                            }`}
+                          >
+                            {conv.lastMessage?.content || 'Started a conversation'} • {formatTimeAgo(conv.updatedAt)}
+                          </p>
+                        </div>
+
+                        {conv.unreadCount > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
+                        )}
+                      </div>
+                    );
+                  })
+              )}
             </div>
           </div>
 

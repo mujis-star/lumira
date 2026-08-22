@@ -14,10 +14,21 @@ export function RightWidgetPanel() {
   const { currentUser, allUsers, savedAccounts, toggleFollow, isFollowing, switchPersona } = useAuth();
   const mounted = useIsMounted();
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+  const [isSuggestedModalOpen, setIsSuggestedModalOpen] = useState(false);
+  const [suggestedSearch, setSuggestedSearch] = useState('');
 
   const suggestedUsers = allUsers
     .filter((u) => u.id !== currentUser?.id)
     .slice(0, 5);
+
+  const allSuggestedModalUsers = allUsers
+    .filter((u) => u.id !== currentUser?.id)
+    .filter(
+      (u) =>
+        !suggestedSearch.trim() ||
+        u.username.toLowerCase().includes(suggestedSearch.toLowerCase().trim()) ||
+        u.displayName.toLowerCase().includes(suggestedSearch.toLowerCase().trim())
+    );
 
   return (
     <aside className="w-[320px] shrink-0 hidden lg:block select-none text-xs text-[var(--text-secondary)]">
@@ -55,12 +66,13 @@ export function RightWidgetPanel() {
           <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
             Suggested for you
           </span>
-          <Link
-            href="/explore"
-            className="text-xs font-bold text-[var(--accent-blue)] hover:underline transition-opacity"
+          <button
+            type="button"
+            onClick={() => setIsSuggestedModalOpen(true)}
+            className="text-xs font-bold text-[var(--accent-blue)] hover:text-[var(--accent-blue-hover)] cursor-pointer hover:underline transition-opacity"
           >
             See All
-          </Link>
+          </button>
         </div>
 
         {/* Suggested Users List */}
@@ -100,6 +112,83 @@ export function RightWidgetPanel() {
           })}
         </div>
       </div>
+
+      {/* Suggested for You Modal (Opens on 'See All') */}
+      <Modal
+        isOpen={isSuggestedModalOpen}
+        onClose={() => {
+          setIsSuggestedModalOpen(false);
+          setSuggestedSearch('');
+        }}
+        title="Suggested for You"
+        size="md"
+      >
+        <div className="p-4 space-y-4 max-h-[75vh] flex flex-col">
+          {/* Modal Search Bar */}
+          <div className="relative shrink-0">
+            <input
+              type="text"
+              value={suggestedSearch}
+              onChange={(e) => setSuggestedSearch(e.target.value)}
+              placeholder="Search creators to follow..."
+              className="w-full px-4 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
+            />
+          </div>
+
+          {/* Accounts List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-[var(--glass-border-subtle)] space-y-1 pr-1">
+            {allSuggestedModalUsers.length === 0 ? (
+              <div className="py-12 text-center text-xs text-[var(--text-secondary)]">
+                No accounts found matching &ldquo;{suggestedSearch}&rdquo;
+              </div>
+            ) : (
+              allSuggestedModalUsers.map((user) => {
+                const following = isFollowing(user.id);
+
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-colors"
+                  >
+                    <Link
+                      href={`/profile/${user.username}`}
+                      onClick={() => setIsSuggestedModalOpen(false)}
+                      className="flex items-center gap-3 min-w-0 flex-1"
+                    >
+                      <Avatar src={user.avatarUrl} alt={user.displayName} size="md" isVerified={user.isVerified} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-[var(--text-primary)] truncate hover:text-[var(--accent-blue)] transition-colors">
+                          {user.username}
+                        </p>
+                        <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                          {user.displayName}
+                        </p>
+                        {user.bio && (
+                          <p className="text-[10px] text-[var(--text-secondary)] opacity-75 truncate mt-0.5">
+                            {user.bio}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleFollow(user.id)}
+                      className={`text-xs font-bold cursor-pointer shrink-0 ml-3 px-4 py-1.5 rounded-xl transition-all active:scale-95 ${
+                        following
+                          ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] border border-[var(--glass-border)] hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30'
+                          : 'bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)] shadow-sm'
+                      }`}
+                    >
+                      {following ? 'Following' : 'Follow'}
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* Lumira Footer Links */}
       <div className="px-3 space-y-2 text-[11px] text-[var(--text-tertiary)] leading-relaxed">
