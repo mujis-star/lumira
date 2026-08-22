@@ -48,6 +48,7 @@ export default function DirectMessagePage() {
 
   const [messageText, setMessageText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentFilterTab, setCurrentFilterTab] = useState<'primary' | 'general' | 'channels' | 'requests'>('primary');
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [chatCreationTab, setChatCreationTab] = useState<'direct' | 'group'>('direct');
   const [newGroupName, setNewGroupName] = useState('');
@@ -181,11 +182,22 @@ export default function DirectMessagePage() {
             </div>
 
             {/* Instagram Notes & Search Tray */}
-            <NotesTray onSearchChange={(q) => setSearchQuery(q)} />
+            <NotesTray
+              onSearchChange={(q) => setSearchQuery(q)}
+              onFilterTabChange={(tab) => setCurrentFilterTab(tab)}
+            />
 
             {/* Subheader */}
             <div className="px-4 pt-3 pb-2 flex items-center justify-between text-xs">
-              <span className="font-bold text-[var(--text-primary)]">Messages & Groups</span>
+              <span className="font-bold text-[var(--text-primary)]">
+                {currentFilterTab === 'channels'
+                  ? 'Channels & Groups'
+                  : currentFilterTab === 'requests'
+                  ? 'Message Requests'
+                  : currentFilterTab === 'general'
+                  ? 'General Messages'
+                  : 'Messages & Groups'}
+              </span>
               <button
                 onClick={() => {
                   setIsNewChatOpen(true);
@@ -200,7 +212,13 @@ export default function DirectMessagePage() {
 
             {/* Conversation Threads */}
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)]">
-              {conversations.map((conv) => {
+              {conversations
+                .filter((conv) => {
+                  if (currentFilterTab === 'channels') return conv.isGroup;
+                  if (currentFilterTab === 'requests') return false; // Clean requests view
+                  return true;
+                })
+                .map((conv) => {
                 const isSelected = conv.id === activeConversationId;
                 const other = conv.isGroup
                   ? null

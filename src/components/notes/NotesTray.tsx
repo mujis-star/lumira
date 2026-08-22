@@ -15,10 +15,11 @@ const NOTES_STORAGE_KEY = 'lumira-v2-notes';
 
 interface NotesTrayProps {
   onSearchChange?: (query: string) => void;
+  onFilterTabChange?: (tab: 'primary' | 'general' | 'channels' | 'requests') => void;
   showFilters?: boolean;
 }
 
-export function NotesTray({ onSearchChange, showFilters = true }: NotesTrayProps) {
+export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = true }: NotesTrayProps) {
   const { currentUser } = useAuth();
   const { sendMessage } = useChat();
 
@@ -28,7 +29,19 @@ export function NotesTray({ onSearchChange, showFilters = true }: NotesTrayProps
   const [replyMessage, setReplyMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilterTab, setActiveFilterTab] = useState<'primary' | 'general' | 'channels' | 'requests'>('primary');
+
   const scrollRef = useRef<HTMLDivElement>(null);
+  const filterScrollRef = useRef<HTMLDivElement>(null);
+
+  // Drag-to-scroll state for notes
+  const [isDraggingNotes, setIsDraggingNotes] = useState(false);
+  const [notesStartX, setNotesStartX] = useState(0);
+  const [notesScrollLeft, setNotesScrollLeft] = useState(0);
+
+  // Drag-to-scroll state for filters
+  const [isDraggingFilters, setIsDraggingFilters] = useState(false);
+  const [filtersStartX, setFiltersStartX] = useState(0);
+  const [filtersScrollLeft, setFiltersScrollLeft] = useState(0);
 
   // Hydrate notes from localStorage
   useEffect(() => {
@@ -101,7 +114,7 @@ export function NotesTray({ onSearchChange, showFilters = true }: NotesTrayProps
     setActiveNoteForReply(null);
   };
 
-  // Horizontal mouse wheel scrolling for notes
+  // Horizontal mouse wheel scrolling for notes tray
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -120,10 +133,82 @@ export function NotesTray({ onSearchChange, showFilters = true }: NotesTrayProps
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
+  // Horizontal mouse wheel scrolling for filter tabs bar
+  useEffect(() => {
+    const el = filterScrollRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (maxScroll <= 0) return;
+      const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (delta !== 0) {
+        e.preventDefault();
+        el.scrollLeft += delta * 1.2;
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Notes Drag Handlers
+  const handleNotesMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDraggingNotes(true);
+    setNotesStartX(e.pageX - scrollRef.current.offsetLeft);
+    setNotesScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleNotesMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingNotes || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - notesStartX) * 1.5;
+    scrollRef.current.scrollLeft = notesScrollLeft - walk;
+  };
+
+  const handleNotesMouseUp = () => {
+    setIsDraggingNotes(false);
+  };
+
+  // Filter Tabs Drag Handlers
+  const handleFiltersMouseDown = (e: React.MouseEvent) => {
+    if (!filterScrollRef.current) return;
+    setIsDraggingFilters(true);
+    setFiltersStartX(e.pageX - filterScrollRef.current.offsetLeft);
+    setFiltersScrollLeft(filterScrollRef.current.scrollLeft);
+  };
+
+  const handleFiltersMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingFilters || !filterScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - filterScrollRef.current.offsetLeft;
+    const walk = (x - filtersStartX) * 1.5;
+    filterScrollRef.current.scrollLeft = filtersScrollLeft - walk;
+  };
+
+  const handleFiltersMouseUp = () => {
+    setIsDraggingFilters(false);
+  };
+
+  const handleTabClick = (tab: 'primary' | 'general' | 'channels' | 'requests', e?: React.MouseEvent) => {
+    setActiveFilterTab(tab);
+    onFilterTabChange?.(tab);
+
+    if (e?.currentTarget) {
+      (e.currentTarget as HTMLElement).scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  };
+
   return (
-    <div className="w-full space-y-3.5 select-none bg-[var(--bg-primary)] px-4 pt-3 pb-2 border-b border-[var(--border-color)]">
+    <div className="w-full space-y-3 select-none bg-[var(--bg-primary)] px-3 sm:px-4 pt-3 pb-2 border-b border-[var(--border-color)]">
       {/* 1. Search Bar with Filter Option */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
           <input
@@ -137,18 +222,18 @@ export function NotesTray({ onSearchChange, showFilters = true }: NotesTrayProps
             className="w-full pl-10 pr-4 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800/80 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--border-color)]"
           />
         </div>
-        <button
-          type="button"
-          className="text-xs font-bold text-[#0095f6] hover:text-[#1877f2] cursor-pointer"
-        >
-          Filter
-        </button>
       </div>
 
-      {/* 2. Horizontal Notes Tray */}
+      {/* 2. Horizontal Notes Tray with Wheel & Drag-to-Scroll */}
       <div
         ref={scrollRef}
-        className="flex items-start gap-4 overflow-x-auto no-scrollbar scroll-smooth pt-3 pb-1"
+        onMouseDown={handleNotesMouseDown}
+        onMouseMove={handleNotesMouseMove}
+        onMouseUp={handleNotesMouseUp}
+        onMouseLeave={handleNotesMouseUp}
+        className={`flex items-start gap-4 overflow-x-auto no-scrollbar scroll-smooth pt-2 pb-1 ${
+          isDraggingNotes ? 'cursor-grabbing' : 'cursor-grab'
+        }`}
       >
         {/* Your Note Bubble & Avatar */}
         {currentUser && (
@@ -222,60 +307,72 @@ export function NotesTray({ onSearchChange, showFilters = true }: NotesTrayProps
         ))}
       </div>
 
-      {/* 3. Filter Tabs (Primary 6, General, Channels, Requests 1) */}
+      {/* 3. Fully Moveable Filter Tabs (Primary 6, General, Channels, Requests 1) with Drag, Wheel & Arrow Navigation */}
       {showFilters && (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
-          <button
-            type="button"
-            onClick={() => setActiveFilterTab('primary')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeFilterTab === 'primary'
-                ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+        <div className="relative group/filters pt-1">
+          {/* Scrollable Tabs Track */}
+          <div
+            ref={filterScrollRef}
+            onMouseDown={handleFiltersMouseDown}
+            onMouseMove={handleFiltersMouseMove}
+            onMouseUp={handleFiltersMouseUp}
+            onMouseLeave={handleFiltersMouseUp}
+            className={`flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5 ${
+              isDraggingFilters ? 'cursor-grabbing' : 'cursor-grab'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
-            <span>Primary</span>
-            <span className="opacity-70">6</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick('primary', e)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                activeFilterTab === 'primary'
+                  ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800/40'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
+              <span>Primary</span>
+              <span className="opacity-70 text-[10px]">6</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveFilterTab('general')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              activeFilterTab === 'general'
-                ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            General
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick('general', e)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                activeFilterTab === 'general'
+                  ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800/40'
+              }`}
+            >
+              General
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveFilterTab('channels')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              activeFilterTab === 'channels'
-                ? 'bg-blue-500/15 text-[#0095f6]'
-                : 'text-[#0095f6] hover:opacity-80'
-            }`}
-          >
-            Channels
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick('channels', e)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                activeFilterTab === 'channels'
+                  ? 'bg-blue-500/20 text-[#0095f6] shadow-xs'
+                  : 'text-[#0095f6] hover:bg-blue-500/10'
+              }`}
+            >
+              Channels
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveFilterTab('requests')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeFilterTab === 'requests'
-                ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
-            <span>Requests</span>
-            <span className="opacity-70">1</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick('requests', e)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                activeFilterTab === 'requests'
+                  ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800/40'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
+              <span>Requests</span>
+              <span className="opacity-70 text-[10px]">1</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -288,56 +385,58 @@ export function NotesTray({ onSearchChange, showFilters = true }: NotesTrayProps
         onDeleteNote={handleDeleteUserNote}
       />
 
-      {/* Reply to Friend's Note Modal */}
+      {/* Reply to Note Modal */}
       {activeNoteForReply && (
         <Modal
           isOpen={!!activeNoteForReply}
           onClose={() => setActiveNoteForReply(null)}
-          title={`@${activeNoteForReply.user.username}'s Note`}
+          title={`Reply to ${activeNoteForReply.user.displayName}`}
           size="sm"
         >
-          <div className="p-4 space-y-4 select-none bg-[var(--modal-bg)]">
-            {/* Note Display Bubble */}
-            <div className="flex flex-col items-center text-center gap-2 pt-2">
-              <div className="px-4 py-3 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-[var(--border-color)] shadow-md max-w-[260px] space-y-1">
+          <form onSubmit={handleSendNoteReply} className="p-4 space-y-4 select-none bg-[var(--modal-bg)]">
+            <div className="flex items-center gap-3 p-3 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl">
+              <Avatar src={activeNoteForReply.user.avatarUrl} alt={activeNoteForReply.user.displayName} size="md" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-[var(--text-primary)]">{activeNoteForReply.user.username}</p>
                 {activeNoteForReply.song && (
-                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-blue-500">
-                    <span className="animate-pulse">ılı</span>
-                    <span>{activeNoteForReply.song.title} • {activeNoteForReply.song.artist}</span>
-                  </div>
-                )}
-                {activeNoteForReply.text && (
-                  <p className="text-xs text-[var(--text-primary)] font-semibold break-words">
-                    &ldquo;{activeNoteForReply.text}&rdquo;
+                  <p className="text-[11px] text-blue-500 font-semibold truncate">
+                    🎵 {activeNoteForReply.song.title} • {activeNoteForReply.song.artist}
                   </p>
                 )}
-              </div>
-
-              <div className="flex items-center gap-2 mt-1">
-                <Avatar src={activeNoteForReply.user.avatarUrl} alt={activeNoteForReply.user.displayName} size="sm" />
-                <span className="text-xs font-bold text-[var(--text-primary)]">{activeNoteForReply.user.displayName}</span>
+                {activeNoteForReply.text && (
+                  <p className="text-xs text-[var(--text-primary)] italic">&ldquo;{activeNoteForReply.text}&rdquo;</p>
+                )}
               </div>
             </div>
 
-            {/* Direct Message Reply Form */}
-            <form onSubmit={handleSendNoteReply} className="pt-2 border-t border-[var(--border-color)] flex items-center gap-2">
+            <div>
               <input
                 type="text"
                 value={replyMessage}
                 onChange={(e) => setReplyMessage(e.target.value)}
-                placeholder={`Send message to ${activeNoteForReply.user.username}...`}
-                className="flex-1 px-3.5 py-2 rounded-xl bg-[var(--input-bg)] text-xs text-[var(--text-primary)] border border-[var(--border-color)] focus:outline-none placeholder-[var(--text-secondary)]"
+                placeholder={`Send a message to ${activeNoteForReply.user.username}...`}
+                className="w-full p-2.5 rounded-xl bg-[var(--input-bg)] text-xs text-[var(--text-primary)] border border-[var(--border-color)] focus:outline-none"
                 autoFocus
               />
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveNoteForReply(null)}
+                className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={!replyMessage.trim()}
-                className="px-4 py-2 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all cursor-pointer disabled:cursor-default"
+                className="px-4 py-2 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all shadow cursor-pointer"
               >
-                Send
+                Send Message
               </button>
-            </form>
-          </div>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
