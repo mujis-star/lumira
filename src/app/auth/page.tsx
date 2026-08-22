@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { sounds, triggerConfetti } from '@/lib/utils';
-import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -33,6 +33,27 @@ export default function AuthPage() {
       router.replace('/');
     }
   }, [currentUser, isAuthLoading, router]);
+
+  const switchToSignup = () => {
+    setMode('signup');
+    setError(null);
+    if (emailOrUsername.trim()) {
+      if (emailOrUsername.includes('@')) {
+        setSignupEmail(emailOrUsername.trim());
+        setSignupUsername(emailOrUsername.split('@')[0].toLowerCase().replace(/[^a-z0-9_.]/g, ''));
+      } else {
+        setSignupUsername(emailOrUsername.trim().toLowerCase().replace(/[^a-z0-9_.]/g, ''));
+      }
+    }
+  };
+
+  const switchToLogin = () => {
+    setMode('login');
+    setError(null);
+    if (signupEmail.trim() || signupUsername.trim()) {
+      setEmailOrUsername(signupEmail.trim() || signupUsername.trim());
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,10 +146,7 @@ export default function AuthPage() {
           <div className="flex items-center p-1 bg-white/5 border border-white/10 rounded-2xl">
             <button
               type="button"
-              onClick={() => {
-                setMode('login');
-                setError(null);
-              }}
+              onClick={switchToLogin}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 mode === 'login'
                   ? 'bg-[#0095f6] text-white shadow-md'
@@ -139,10 +157,7 @@ export default function AuthPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMode('signup');
-                setError(null);
-              }}
+              onClick={switchToSignup}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 mode === 'signup'
                   ? 'bg-[#0095f6] text-white shadow-md'
@@ -153,10 +168,20 @@ export default function AuthPage() {
             </button>
           </div>
 
-          {/* Error Message Box */}
+          {/* Error Message Box with 1-Click Action */}
           {error && (
-            <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium text-center animate-shake">
-              {error}
+            <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium text-center space-y-1.5 animate-shake">
+              <p>{error}</p>
+              {mode === 'login' && error.includes('sign up') && (
+                <button
+                  type="button"
+                  onClick={switchToSignup}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Click here to create your account now</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -215,6 +240,19 @@ export default function AuthPage() {
                 <span>{isLoading ? 'Verifying Account...' : 'Log In'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+
+              <div className="text-center pt-1">
+                <p className="text-[11px] text-neutral-400">
+                  Don&apos;t have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={switchToSignup}
+                    className="text-[#0095f6] hover:underline font-bold cursor-pointer"
+                  >
+                    Sign up
+                  </button>
+                </p>
+              </div>
             </form>
           )}
 
@@ -310,6 +348,19 @@ export default function AuthPage() {
                 <span>{isLoading ? 'Creating Account...' : 'Sign Up'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+
+              <div className="text-center pt-1">
+                <p className="text-[11px] text-neutral-400">
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={switchToLogin}
+                    className="text-[#0095f6] hover:underline font-bold cursor-pointer"
+                  >
+                    Log in
+                  </button>
+                </p>
+              </div>
             </form>
           )}
 
