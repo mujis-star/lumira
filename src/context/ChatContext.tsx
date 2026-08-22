@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Conversation, Message, UserProfile } from '@/lib/types';
 import { SEED_CONVERSATIONS, SEED_MESSAGES } from '@/lib/seedData';
 import { useAuth } from './AuthContext';
@@ -39,26 +39,31 @@ const MESSAGES_STORAGE_KEY = 'lumira-v2-messages';
 
 // Generate a deterministic, canonical conversation ID for any 2 users
 export function getCanonicalDirectConvId(userId1: string, userId2: string): string {
-  const sorted = [userId1.trim(), userId2.trim()].sort();
+  const u1 = (userId1 || '').toLowerCase().trim();
+  const u2 = (userId2 || '').toLowerCase().trim();
+  const sorted = [u1, u2].sort();
   return `dm_${sorted[0]}_${sorted[1]}`;
 }
 
-// Function to strictly merge and deduplicate conversations by participant pair
+// Function to strictly merge and deduplicate conversations for the current user
 export function mergeAndDeduplicateConversations(
   rawConvs: Conversation[],
   rawMsgs: Record<string, Message[]>,
-  currentUserId?: string,
+  currentUserProfile?: UserProfile | null,
   allUsersList?: UserProfile[]
 ): { conversations: Conversation[]; messages: Record<string, Message[]> } {
   const unifiedMessages: Record<string, Message[]> = {};
   const unifiedConvsMap = new Map<string, Conversation>();
+
+  const currentUserId = currentUserProfile?.id;
+  const currentUsername = currentUserProfile?.username?.toLowerCase().trim();
 
   // Helper to find full user profile
   const findProfile = (id: string): UserProfile | undefined => {
     return allUsersList?.find((u) => u.id === id || u.username.toLowerCase() === id.toLowerCase());
   };
 
-  // 1. Process all raw conversations and group by canonical ID
+  // 1. Process all raw conversations
   for (const conv of rawConvs) {
     if (!conv || !conv.id) continue;
 
@@ -103,6 +108,24 @@ export function mergeAndDeduplicateConversations(
       const pIds = (conv.participantIds || []).filter(Boolean);
       if (pIds.length === 0) continue;
 
+      // Filter: Only include in sidebar if currentUser is a participant (or if currentUser not logged in)
+      if (currentUserId) {
+        const isParticipant =
+          pIds.includes(currentUserId) ||
+          (conv.participants || []).some(
+            (p) =>
+              p.id === currentUserId ||
+              (currentUsername && p.username?.toLowerCase() === currentUsername)
+          ) ||
+          conv.id.includes(currentUserId) ||
+          (currentUsername && conv.id.includes(currentUsername));
+
+        if (!isParticipant) {
+          // Skip conversations between other users so they don't pollute currentUser's inbox!
+          continue;
+        }
+      }
+
       let canonicalKey = conv.id;
       if (pIds.length >= 2) {
         canonicalKey = getCanonicalDirectConvId(pIds[0], pIds[1]);
@@ -137,7 +160,7 @@ export function mergeAndDeduplicateConversations(
       // Resolve participants cleanly
       const participantProfiles: UserProfile[] = [];
       const canonicalParticipantIds = pIds.length >= 2 ? [pIds[0], pIds[1]] : [currentUserId || pIds[0], pIds[0]];
-      
+
       for (const id of canonicalParticipantIds) {
         const found = findProfile(id) || (conv.participants || []).find((p) => p.id === id);
         if (found && !participantProfiles.some((p) => p.id === found.id)) {
@@ -188,14 +211,38 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize with seed data, merged and deduplicated
   const initialMerged = useMemo(() => {
-    return mergeAndDeduplicateConversations(SEED_CONVERSATIONS, SEED_MESSAGES, currentUser?.id, allUsers);
-  }, [currentUser?.id, allUsers]);
+    return mergeAndDeduplicateConversations(SEED_CONVERSATIONS, SEED_MESSAGES, currentUser, allUsers);
+  }, [currentUser, allUsers]);
 
   const [conversations, setConversations] = useState<Conversation[]>(initialMerged.conversations);
   const [messages, setMessages] = useState<Record<string, Message[]>>(initialMerged.messages);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     initialMerged.conversations[0]?.id || null
   );
+
+  // References to eliminate stale closure bugs during real-time sync
+  const messagesRef = useRef<Record<string, Message[]>>(initialMerged.messages);
+  const conversationsRef = useRef<Conversation[]>(initialMerged.conversations);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  // Re-sync on currentUser change
+  useEffect(() => {
+    const merged = mergeAndDeduplicateConversations(conversationsRef.current, messagesRef.current, currentUser, allUsers);
+    setConversations(merged.conversations);
+    setMessages(merged.messages);
+    messagesRef.current = merged.messages;
+    conversationsRef.current = merged.conversations;
+    if (merged.conversations.length > 0) {
+      setActiveConversationId((prev) => (prev && merged.conversations.some((c) => c.id === prev) ? prev : merged.conversations[0].id));
+    }
+  }, [currentUser, allUsers]);
 
   // Hydrate from localStorage asynchronously after initial hydration
   useEffect(() => {
@@ -220,9 +267,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             } catch {}
           }
 
-          const merged = mergeAndDeduplicateConversations(parsedConvs, parsedMsgs, currentUser?.id, allUsers);
+          const merged = mergeAndDeduplicateConversations(parsedConvs, parsedMsgs, currentUser, allUsers);
           setConversations(merged.conversations);
           setMessages(merged.messages);
+          messagesRef.current = merged.messages;
+          conversationsRef.current = merged.conversations;
           if (merged.conversations.length > 0 && !activeConversationId) {
             setActiveConversationId(merged.conversations[0].id);
           }
@@ -239,9 +288,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           const msgsStr = localStorage.getItem(MESSAGES_STORAGE_KEY);
           const c = convsStr ? JSON.parse(convsStr) : SEED_CONVERSATIONS;
           const m = msgsStr ? JSON.parse(msgsStr) : SEED_MESSAGES;
-          const merged = mergeAndDeduplicateConversations(c, m, currentUser?.id, allUsers);
+          const merged = mergeAndDeduplicateConversations(c, m, currentUser, allUsers);
           setConversations(merged.conversations);
           setMessages(merged.messages);
+          messagesRef.current = merged.messages;
+          conversationsRef.current = merged.conversations;
         } catch {}
       }
     };
@@ -252,23 +303,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         .then((res) => res.json())
         .then((data) => {
           if (data?.conversations || data?.messages) {
-            setConversations((prevConvs) => {
-              setMessages((prevMsgs) => {
-                const combinedConvs = [...(data.conversations || []), ...prevConvs];
-                const combinedMsgs = { ...(data.messages || {}), ...prevMsgs };
-                const merged = mergeAndDeduplicateConversations(combinedConvs, combinedMsgs, currentUser?.id, allUsers);
+            const currentMsgs = messagesRef.current;
+            const currentConvs = conversationsRef.current;
 
-                try {
-                  localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(merged.conversations));
-                  localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(merged.messages));
-                } catch {}
+            const combinedConvs = [...(data.conversations || []), ...currentConvs];
+            const combinedMsgs = { ...(data.messages || {}), ...currentMsgs };
+            const merged = mergeAndDeduplicateConversations(combinedConvs, combinedMsgs, currentUser, allUsers);
 
-                return merged.messages;
-              });
-              const combinedConvs = [...(data.conversations || []), ...prevConvs];
-              const merged = mergeAndDeduplicateConversations(combinedConvs, messages, currentUser?.id, allUsers);
-              return merged.conversations;
-            });
+            setConversations(merged.conversations);
+            setMessages(merged.messages);
+            messagesRef.current = merged.messages;
+            conversationsRef.current = merged.conversations;
+
+            try {
+              localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(merged.conversations));
+              localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(merged.messages));
+            } catch {}
           }
         })
         .catch(() => {});
@@ -279,10 +329,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(syncInterval);
     };
-  }, [currentUser?.id, allUsers, activeConversationId, messages]);
+  }, [currentUser, allUsers, activeConversationId]);
 
   const persistConversations = useCallback((updated: Conversation[]) => {
     setConversations(updated);
+    conversationsRef.current = updated;
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(updated));
@@ -294,6 +345,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const persistMessages = useCallback((updated: Record<string, Message[]>) => {
     setMessages(updated);
+    messagesRef.current = updated;
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(updated));
@@ -304,7 +356,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const getConversationMessages = useCallback((convId: string): Message[] => {
-    return messages[convId] || [];
+    const list = messages[convId];
+    if (list && list.length > 0) return list;
+
+    for (const [key, msgList] of Object.entries(messages)) {
+      if (key === convId || key.includes(convId) || convId.includes(key)) {
+        return msgList;
+      }
+    }
+    return [];
   }, [messages]);
 
   // Start or switch to a single unified 1-to-1 conversation
@@ -313,8 +373,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const canonicalConvId = getCanonicalDirectConvId(currentUser.id, targetUserId);
 
-    // Check if canonical conversation already exists
-    const existing = conversations.find(
+    // Check if canonical conversation already exists in current list
+    const existing = conversationsRef.current.find(
       (c) =>
         !c.isGroup &&
         (c.id === canonicalConvId ||
@@ -326,7 +386,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return existing.id;
     }
 
-    const targetUser = getUserById(targetUserId) || allUsers.find((u) => u.id === targetUserId);
+    const targetUser = getUserById(targetUserId) || allUsers.find((u) => u.id === targetUserId || u.username.toLowerCase() === targetUserId.toLowerCase());
     if (!targetUser) return '';
 
     const newConv: Conversation = {
@@ -338,11 +398,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       updatedAt: new Date().toISOString(),
     };
 
-    const updatedConvs = [newConv, ...conversations.filter((c) => c.id !== canonicalConvId)];
+    const updatedConvs = [newConv, ...conversationsRef.current.filter((c) => c.id !== canonicalConvId)];
     persistConversations(updatedConvs);
     setActiveConversationId(canonicalConvId);
     return canonicalConvId;
-  }, [currentUser, conversations, getUserById, allUsers, persistConversations]);
+  }, [currentUser, getUserById, allUsers, persistConversations]);
 
   const createGroupChat = useCallback((groupName: string, memberUserIds: string[], groupAvatarUrl?: string): string => {
     if (!currentUser) return '';
@@ -384,11 +444,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         ...newGroupConv,
         lastMessage: welcomeMessage,
       },
-      ...conversations,
+      ...conversationsRef.current,
     ];
 
     const updatedMessages = {
-      ...messages,
+      ...messagesRef.current,
       [newGroupId]: [welcomeMessage],
     };
 
@@ -399,7 +459,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     triggerConfetti(0.5, 0.5);
 
     return newGroupId;
-  }, [currentUser, allUsers, conversations, messages, getUserById, persistConversations, persistMessages]);
+  }, [currentUser, allUsers, getUserById, persistConversations, persistMessages]);
 
   const updateGroupChat = useCallback((convId: string, updates: { groupName?: string; groupAvatarUrl?: string; addMemberIds?: string[]; removeMemberIds?: string[] }) => {
     setConversations((prevConvs) => {
@@ -472,17 +532,25 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       convId = startDirectMessage(targetReceiverId);
     }
 
-    if (!convId) return;
-
-    // Find the conversation
-    const currentConv = conversations.find((c) => c.id === convId);
-    if (!targetReceiverId) {
-      targetReceiverId = currentConv?.isGroup
-        ? convId
-        : currentConv?.participantIds.find((id) => id !== currentUser.id) || convId;
+    if (!convId) {
+      if (activeConversationId) {
+        convId = activeConversationId;
+      } else if (conversationsRef.current[0]) {
+        convId = conversationsRef.current[0].id;
+      }
     }
 
-    // Determine canonical conversation ID for direct chats
+    if (!convId) return;
+
+    const currentConv = conversationsRef.current.find((c) => c.id === convId);
+    if (!targetReceiverId && currentConv) {
+      targetReceiverId = currentConv.isGroup
+        ? currentConv.id
+        : currentConv.participantIds.find((id) => id !== currentUser.id) ||
+          currentConv.participants.find((p) => p.id !== currentUser.id)?.id ||
+          currentConv.id;
+    }
+
     let finalConvId = convId;
     if (currentConv && !currentConv.isGroup && targetReceiverId) {
       finalConvId = getCanonicalDirectConvId(currentUser.id, targetReceiverId);
@@ -492,7 +560,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       conversationId: finalConvId,
       senderId: currentUser.id,
-      receiverId: targetReceiverId,
+      receiverId: targetReceiverId || finalConvId,
       content: input.content,
       mediaUrl: input.mediaUrl,
       mediaType: input.mediaType,
@@ -503,54 +571,47 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
 
     // 1. Append message to the single conversation history
-    setMessages((prevMsgs) => {
-      const currentList = prevMsgs[finalConvId] || prevMsgs[convId!] || [];
-      const updatedMessages = {
-        ...prevMsgs,
-        [finalConvId]: [...currentList, newMessage],
-      };
-      persistMessages(updatedMessages);
-      return updatedMessages;
-    });
+    const currentMsgs = messagesRef.current;
+    const currentList = currentMsgs[finalConvId] || currentMsgs[convId] || [];
+    const updatedMessages = {
+      ...currentMsgs,
+      [finalConvId]: [...currentList, newMessage],
+    };
+    persistMessages(updatedMessages);
 
     // 2. Update conversation record & move to the TOP of the sidebar
-    setConversations((prevConvs) => {
-      let matchedConv = prevConvs.find((c) => c.id === finalConvId || c.id === convId);
-      if (!matchedConv) {
-        const receiverProfile = getUserById(targetReceiverId!) || allUsers.find((u) => u.id === targetReceiverId);
-        matchedConv = {
-          id: finalConvId,
-          isGroup: false,
-          participantIds: [currentUser.id, targetReceiverId!],
-          participants: [currentUser, receiverProfile || currentUser],
-          unreadCount: 0,
-          updatedAt: newMessage.createdAt,
-          lastMessage: newMessage,
-        };
-      } else {
-        matchedConv = {
-          ...matchedConv,
-          id: finalConvId,
-          lastMessage: newMessage,
-          updatedAt: newMessage.createdAt,
-        };
-      }
-
-      // Filter out any other duplicate copies and place the updated conversation at index 0
-      const remaining = prevConvs.filter((c) => c.id !== finalConvId && c.id !== convId);
-      const updatedConvs = [matchedConv, ...remaining];
-
-      persistConversations(updatedConvs);
-      return updatedConvs;
-    });
-
-    if (activeConversationId !== finalConvId) {
-      setActiveConversationId(finalConvId);
+    const currentConvs = conversationsRef.current;
+    let matchedConv = currentConvs.find((c) => c.id === finalConvId || c.id === convId);
+    if (!matchedConv) {
+      const receiverProfile = getUserById(targetReceiverId!) || allUsers.find((u) => u.id === targetReceiverId || u.username.toLowerCase() === targetReceiverId?.toLowerCase());
+      matchedConv = {
+        id: finalConvId,
+        isGroup: false,
+        participantIds: [currentUser.id, targetReceiverId!],
+        participants: [currentUser, receiverProfile || currentUser],
+        unreadCount: 0,
+        updatedAt: newMessage.createdAt,
+        lastMessage: newMessage,
+      };
+    } else {
+      matchedConv = {
+        ...matchedConv,
+        id: finalConvId,
+        lastMessage: newMessage,
+        updatedAt: newMessage.createdAt,
+      };
     }
+
+    const remaining = currentConvs.filter((c) => c.id !== finalConvId && c.id !== convId);
+    const updatedConvs = [matchedConv, ...remaining];
+    persistConversations(updatedConvs);
+
+    // 3. Ensure active conversation is set
+    setActiveConversationId(finalConvId);
 
     sounds.playSend();
 
-    // Broadcast to server for real-time multi-window sync
+    // 4. Broadcast to server for real-time multi-window sync
     fetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -564,45 +625,42 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         },
       }),
     }).catch(() => {});
-  }, [currentUser, conversations, startDirectMessage, getUserById, allUsers, activeConversationId, persistMessages, persistConversations]);
+  }, [currentUser, startDirectMessage, getUserById, allUsers, activeConversationId, persistMessages, persistConversations]);
 
   const addMessageReaction = useCallback((messageId: string, emoji: string) => {
     if (!currentUser || !activeConversationId) return;
 
-    setMessages((prevMsgs) => {
-      const convMsgs = prevMsgs[activeConversationId] || [];
-      const updatedConvMsgs = convMsgs.map((m) => {
-        if (m.id === messageId) {
-          const currentReactions = m.reactions || [];
-          const existingIdx = currentReactions.findIndex((r) => r.userId === currentUser.id);
+    const currentMsgs = messagesRef.current;
+    const convMsgs = currentMsgs[activeConversationId] || [];
+    const updatedConvMsgs = convMsgs.map((m) => {
+      if (m.id === messageId) {
+        const currentReactions = m.reactions || [];
+        const existingIdx = currentReactions.findIndex((r) => r.userId === currentUser.id);
 
-          let updatedReactions;
-          if (existingIdx >= 0) {
-            if (currentReactions[existingIdx].emoji === emoji) {
-              updatedReactions = currentReactions.filter((_, i) => i !== existingIdx);
-            } else {
-              updatedReactions = currentReactions.map((r, i) =>
-                i === existingIdx ? { ...r, emoji } : r
-              );
-            }
+        let updatedReactions;
+        if (existingIdx >= 0) {
+          if (currentReactions[existingIdx].emoji === emoji) {
+            updatedReactions = currentReactions.filter((_, i) => i !== existingIdx);
           } else {
-            updatedReactions = [...currentReactions, { userId: currentUser.id, emoji }];
+            updatedReactions = currentReactions.map((r, i) =>
+              i === existingIdx ? { ...r, emoji } : r
+            );
           }
-
-          return { ...m, reactions: updatedReactions };
+        } else {
+          updatedReactions = [...currentReactions, { userId: currentUser.id, emoji }];
         }
-        return m;
-      });
 
-      const updated = {
-        ...prevMsgs,
-        [activeConversationId]: updatedConvMsgs,
-      };
-
-      persistMessages(updated);
-      return updated;
+        return { ...m, reactions: updatedReactions };
+      }
+      return m;
     });
 
+    const updated = {
+      ...currentMsgs,
+      [activeConversationId]: updatedConvMsgs,
+    };
+
+    persistMessages(updated);
     sounds.playPop();
   }, [currentUser, activeConversationId, persistMessages]);
 
@@ -620,7 +678,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [persistConversations]);
 
   const activeConversation = useMemo(() => {
-    return conversations.find((c) => c.id === activeConversationId);
+    if (!activeConversationId) return conversations[0] || undefined;
+    return conversations.find((c) => c.id === activeConversationId) || conversations[0] || undefined;
   }, [conversations, activeConversationId]);
 
   const totalUnreadCount = useMemo(() => {

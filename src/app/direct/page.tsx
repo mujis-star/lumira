@@ -62,8 +62,8 @@ export default function DirectMessagePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeMessages = useMemo(() => {
-    return activeConversationId ? getConversationMessages(activeConversationId) : [];
-  }, [activeConversationId, getConversationMessages]);
+    return activeConversation?.id ? getConversationMessages(activeConversation.id) : [];
+  }, [activeConversation, getConversationMessages]);
 
   const recipient = activeConversation?.isGroup
     ? null
@@ -71,10 +71,10 @@ export default function DirectMessagePage() {
 
   // Auto mark active conversation as read
   useEffect(() => {
-    if (activeConversationId) {
-      markAsRead(activeConversationId);
+    if (activeConversation?.id) {
+      markAsRead(activeConversation.id);
     }
-  }, [activeConversationId, markAsRead]);
+  }, [activeConversation, markAsRead]);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -86,8 +86,8 @@ export default function DirectMessagePage() {
     if (!messageText.trim() && !selectedMediaUrl) return;
 
     sendMessage({
-      conversationId: activeConversationId || undefined,
-      receiverId: recipient ? recipient.id : activeConversationId || undefined,
+      conversationId: activeConversation?.id || undefined,
+      receiverId: recipient ? recipient.id : activeConversation?.id || undefined,
       content: messageText.trim() || 'Shared an image',
       mediaUrl: selectedMediaUrl || undefined,
       mediaType: selectedMediaUrl ? 'image' : undefined,
@@ -99,16 +99,16 @@ export default function DirectMessagePage() {
 
   const handleQuickHeartSend = () => {
     sendMessage({
-      conversationId: activeConversationId || undefined,
-      receiverId: recipient ? recipient.id : activeConversationId || undefined,
+      conversationId: activeConversation?.id || undefined,
+      receiverId: recipient ? recipient.id : activeConversation?.id || undefined,
       content: '❤️',
     });
   };
 
   const handleSendVoiceNote = () => {
     sendMessage({
-      conversationId: activeConversationId || undefined,
-      receiverId: recipient ? recipient.id : activeConversationId || undefined,
+      conversationId: activeConversation?.id || undefined,
+      receiverId: recipient ? recipient.id : activeConversation?.id || undefined,
       content: 'Voice note (0:18)',
       isAudioVoiceNote: true,
       audioDuration: 18,
@@ -344,7 +344,7 @@ export default function DirectMessagePage() {
                     return true;
                   })
                   .map((conv) => {
-                    const isSelected = conv.id === activeConversationId;
+                    const isSelected = conv.id === activeConversation?.id;
                     const other = conv.isGroup
                       ? null
                       : conv.participants.find((p) => p.id !== currentUser?.id) || conv.participants[0];
