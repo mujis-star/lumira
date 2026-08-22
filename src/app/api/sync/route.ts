@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { SEED_USERS, SEED_CONVERSATIONS, SEED_MESSAGES, SEED_POSTS, SEED_NOTIFICATIONS } from '@/lib/seedData';
 import { UserProfile, Conversation, Message, Post, AppNotification } from '@/lib/types';
 
@@ -49,6 +49,11 @@ Object.entries(SEED_MESSAGES).forEach(([convId, msgs]) => {
   messagesMap.set(convId, [...msgs]);
 });
 
+function getCanonicalDirectConvId(userId1: string, userId2: string): string {
+  const sorted = [userId1.trim(), userId2.trim()].sort();
+  return `dm_${sorted[0]}_${sorted[1]}`;
+}
+
 function getUniqueUsers(): UserProfile[] {
   const byUsername = new Map<string, UserProfile>();
   for (const user of usersMap.values()) {
@@ -60,15 +65,27 @@ function getUniqueUsers(): UserProfile[] {
 }
 
 function getUniqueConversations(): Conversation[] {
-  const list: Conversation[] = [];
-  const seen = new Set<string>();
+  const byKey = new Map<string, Conversation>();
+
   for (const conv of conversationsMap.values()) {
-    if (!seen.has(conv.id)) {
-      seen.add(conv.id);
-      list.push(conv);
+    if (conv.isGroup) {
+      byKey.set(conv.id, conv);
+    } else {
+      const pIds = (conv.participantIds || []).filter(Boolean);
+      if (pIds.length >= 2) {
+        const canonicalKey = getCanonicalDirectConvId(pIds[0], pIds[1]);
+        const existing = byKey.get(canonicalKey);
+        if (!existing || new Date(conv.updatedAt) > new Date(existing.updatedAt)) {
+          byKey.set(canonicalKey, { ...conv, id: canonicalKey });
+        }
+      } else {
+        byKey.set(conv.id, conv);
+      }
     }
   }
-  return list;
+  return Array.from(byKey.values()).sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
 }
 
 function getMessagesRecord(): Record<string, Message[]> {
@@ -103,15 +120,23 @@ export async function POST(req: Request) {
 
     if (action === 'send_message' && payload) {
       const { convId, message, receiverId, sender } = payload;
-      if (convId && message) {
-        const existing = messagesMap.get(convId) || [];
-        messagesMap.set(convId, [...existing, message]);
+      if (message) {
+        let finalConvId = convId;
+        if (sender && receiverId && receiverId !== convId) {
+          finalConvId = getCanonicalDirectConvId(sender.id, receiverId);
+        }
 
-        let conv = conversationsMap.get(convId);
+        const existing = messagesMap.get(finalConvId) || [];
+        const msgExists = existing.some((m) => m.id === message.id);
+        if (!msgExists) {
+          messagesMap.set(finalConvId, [...existing, { ...message, conversationId: finalConvId }]);
+        }
+
+        let conv = conversationsMap.get(finalConvId);
         if (!conv && receiverId && sender) {
           const receiver = usersMap.get(receiverId);
           conv = {
-            id: convId,
+            id: finalConvId,
             isGroup: false,
             participantIds: [sender.id, receiverId],
             participants: [sender, receiver || sender],
@@ -122,7 +147,7 @@ export async function POST(req: Request) {
         if (conv) {
           conv.lastMessage = message;
           conv.updatedAt = new Date().toISOString();
-          conversationsMap.set(convId, conv);
+          conversationsMap.set(finalConvId, conv);
         }
       }
     }

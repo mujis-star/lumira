@@ -37,14 +37,164 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 const CONVERSATIONS_STORAGE_KEY = 'lumira-v2-conversations';
 const MESSAGES_STORAGE_KEY = 'lumira-v2-messages';
 
+// Generate a deterministic, canonical conversation ID for any 2 users
+export function getCanonicalDirectConvId(userId1: string, userId2: string): string {
+  const sorted = [userId1.trim(), userId2.trim()].sort();
+  return `dm_${sorted[0]}_${sorted[1]}`;
+}
+
+// Function to strictly merge and deduplicate conversations by participant pair
+export function mergeAndDeduplicateConversations(
+  rawConvs: Conversation[],
+  rawMsgs: Record<string, Message[]>,
+  currentUserId?: string,
+  allUsersList?: UserProfile[]
+): { conversations: Conversation[]; messages: Record<string, Message[]> } {
+  const unifiedMessages: Record<string, Message[]> = {};
+  const unifiedConvsMap = new Map<string, Conversation>();
+
+  // Helper to find full user profile
+  const findProfile = (id: string): UserProfile | undefined => {
+    return allUsersList?.find((u) => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+  };
+
+  // 1. Process all raw conversations and group by canonical ID
+  for (const conv of rawConvs) {
+    if (!conv || !conv.id) continue;
+
+    if (conv.isGroup) {
+      // Group chats have unique IDs
+      const groupId = conv.id;
+      const existingGroup = unifiedConvsMap.get(groupId);
+
+      // Collect messages
+      const convMsgs = rawMsgs[groupId] || (conv.lastMessage ? [conv.lastMessage] : []);
+      const existingMsgs = unifiedMessages[groupId] || [];
+      const combined = [...existingMsgs, ...convMsgs];
+
+      // Deduplicate messages by ID
+      const msgMap = new Map<string, Message>();
+      for (const m of combined) {
+        if (m && m.id) msgMap.set(m.id, m);
+      }
+      const sortedMsgs = Array.from(msgMap.values()).sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      unifiedMessages[groupId] = sortedMsgs;
+
+      const latestMsg = sortedMsgs[sortedMsgs.length - 1] || conv.lastMessage;
+      const latestTime = latestMsg?.createdAt || conv.updatedAt || new Date().toISOString();
+
+      if (!existingGroup) {
+        unifiedConvsMap.set(groupId, {
+          ...conv,
+          lastMessage: latestMsg,
+          updatedAt: latestTime,
+        });
+      } else {
+        unifiedConvsMap.set(groupId, {
+          ...existingGroup,
+          lastMessage: latestMsg,
+          updatedAt: new Date(latestTime) > new Date(existingGroup.updatedAt) ? latestTime : existingGroup.updatedAt,
+        });
+      }
+    } else {
+      // Direct 1-to-1 Conversation
+      const pIds = (conv.participantIds || []).filter(Boolean);
+      if (pIds.length === 0) continue;
+
+      let canonicalKey = conv.id;
+      if (pIds.length >= 2) {
+        canonicalKey = getCanonicalDirectConvId(pIds[0], pIds[1]);
+      } else if (pIds.length === 1 && currentUserId) {
+        canonicalKey = getCanonicalDirectConvId(currentUserId, pIds[0]);
+      }
+
+      // Collect all messages associated with both this conversation ID and canonicalKey
+      const oldMsgs = rawMsgs[conv.id] || [];
+      const canonicalMsgs = rawMsgs[canonicalKey] || [];
+      const fallbackMsgs = conv.lastMessage ? [conv.lastMessage] : [];
+      const currentStored = unifiedMessages[canonicalKey] || [];
+
+      const combined = [...currentStored, ...oldMsgs, ...canonicalMsgs, ...fallbackMsgs];
+      const msgMap = new Map<string, Message>();
+      for (const m of combined) {
+        if (m && m.id) {
+          msgMap.set(m.id, {
+            ...m,
+            conversationId: canonicalKey,
+          });
+        }
+      }
+      const sortedMsgs = Array.from(msgMap.values()).sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      unifiedMessages[canonicalKey] = sortedMsgs;
+
+      const latestMsg = sortedMsgs[sortedMsgs.length - 1] || conv.lastMessage;
+      const latestTime = latestMsg?.createdAt || conv.updatedAt || new Date().toISOString();
+
+      // Resolve participants cleanly
+      const participantProfiles: UserProfile[] = [];
+      const canonicalParticipantIds = pIds.length >= 2 ? [pIds[0], pIds[1]] : [currentUserId || pIds[0], pIds[0]];
+      
+      for (const id of canonicalParticipantIds) {
+        const found = findProfile(id) || (conv.participants || []).find((p) => p.id === id);
+        if (found && !participantProfiles.some((p) => p.id === found.id)) {
+          participantProfiles.push(found);
+        }
+      }
+
+      const existingConv = unifiedConvsMap.get(canonicalKey);
+      if (!existingConv) {
+        unifiedConvsMap.set(canonicalKey, {
+          ...conv,
+          id: canonicalKey,
+          participantIds: canonicalParticipantIds,
+          participants: participantProfiles.length > 0 ? participantProfiles : conv.participants,
+          lastMessage: latestMsg,
+          updatedAt: latestTime,
+        });
+      } else {
+        unifiedConvsMap.set(canonicalKey, {
+          ...existingConv,
+          participants: participantProfiles.length >= existingConv.participants.length ? participantProfiles : existingConv.participants,
+          lastMessage: latestMsg,
+          updatedAt: new Date(latestTime) > new Date(existingConv.updatedAt) ? latestTime : existingConv.updatedAt,
+        });
+      }
+    }
+  }
+
+  // 2. Also check any orphan message keys in rawMsgs not yet processed
+  for (const [key, msgs] of Object.entries(rawMsgs)) {
+    if (!unifiedMessages[key] && msgs.length > 0) {
+      unifiedMessages[key] = [...msgs].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    }
+  }
+
+  // 3. Convert map to list and sort strictly by latest updated timestamp
+  const finalConvs = Array.from(unifiedConvsMap.values()).sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+
+  return { conversations: finalConvs, messages: unifiedMessages };
+}
+
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { currentUser, getUserById, allUsers } = useAuth();
 
-  // Initialize with seed data for 100% server-client hydration consistency
-  const [conversations, setConversations] = useState<Conversation[]>(SEED_CONVERSATIONS);
-  const [messages, setMessages] = useState<Record<string, Message[]>>(SEED_MESSAGES);
+  // Initialize with seed data, merged and deduplicated
+  const initialMerged = useMemo(() => {
+    return mergeAndDeduplicateConversations(SEED_CONVERSATIONS, SEED_MESSAGES, currentUser?.id, allUsers);
+  }, [currentUser?.id, allUsers]);
+
+  const [conversations, setConversations] = useState<Conversation[]>(initialMerged.conversations);
+  const [messages, setMessages] = useState<Record<string, Message[]>>(initialMerged.messages);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
-    SEED_CONVERSATIONS[0]?.id || null
+    initialMerged.conversations[0]?.id || null
   );
 
   // Hydrate from localStorage asynchronously after initial hydration
@@ -54,11 +204,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const savedMsgs = localStorage.getItem(MESSAGES_STORAGE_KEY);
       if (savedConvs || savedMsgs) {
         setTimeout(() => {
+          let parsedConvs: Conversation[] = SEED_CONVERSATIONS;
+          let parsedMsgs: Record<string, Message[]> = SEED_MESSAGES;
+
           if (savedConvs) {
-            try { setConversations(JSON.parse(savedConvs)); } catch {}
+            try {
+              const c = JSON.parse(savedConvs);
+              if (Array.isArray(c)) parsedConvs = c;
+            } catch {}
           }
           if (savedMsgs) {
-            try { setMessages(JSON.parse(savedMsgs)); } catch {}
+            try {
+              const m = JSON.parse(savedMsgs);
+              if (m && typeof m === 'object') parsedMsgs = m;
+            } catch {}
+          }
+
+          const merged = mergeAndDeduplicateConversations(parsedConvs, parsedMsgs, currentUser?.id, allUsers);
+          setConversations(merged.conversations);
+          setMessages(merged.messages);
+          if (merged.conversations.length > 0 && !activeConversationId) {
+            setActiveConversationId(merged.conversations[0].id);
           }
         }, 0);
       }
@@ -67,16 +233,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === CONVERSATIONS_STORAGE_KEY && e.newValue) {
+      if (e.key === CONVERSATIONS_STORAGE_KEY || e.key === MESSAGES_STORAGE_KEY) {
         try {
-          const parsed = JSON.parse(e.newValue);
-          if (Array.isArray(parsed)) setConversations(parsed);
-        } catch {}
-      }
-      if (e.key === MESSAGES_STORAGE_KEY && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (parsed && typeof parsed === 'object') setMessages(parsed);
+          const convsStr = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
+          const msgsStr = localStorage.getItem(MESSAGES_STORAGE_KEY);
+          const c = convsStr ? JSON.parse(convsStr) : SEED_CONVERSATIONS;
+          const m = msgsStr ? JSON.parse(msgsStr) : SEED_MESSAGES;
+          const merged = mergeAndDeduplicateConversations(c, m, currentUser?.id, allUsers);
+          setConversations(merged.conversations);
+          setMessages(merged.messages);
         } catch {}
       }
     };
@@ -86,37 +251,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       fetch('/api/sync')
         .then((res) => res.json())
         .then((data) => {
-          if (data?.messages && typeof data.messages === 'object') {
-            setMessages((prevMsgs) => {
-              let hasChanges = false;
-              const merged = { ...prevMsgs };
-              for (const [convId, serverMsgList] of Object.entries(data.messages)) {
-                const currentList = merged[convId] || [];
-                const currentIds = new Set(currentList.map((m: Message) => m.id));
-                const newItems = (serverMsgList as Message[]).filter((m: Message) => !currentIds.has(m.id));
-                if (newItems.length > 0) {
-                  merged[convId] = [...currentList, ...newItems];
-                  hasChanges = true;
-                }
-              }
-              if (hasChanges) {
-                try { localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(merged)); } catch {}
-                return merged;
-              }
-              return prevMsgs;
-            });
-          }
-
-          if (data?.conversations && Array.isArray(data.conversations)) {
+          if (data?.conversations || data?.messages) {
             setConversations((prevConvs) => {
-              const currentIds = new Set(prevConvs.map((c) => c.id));
-              const missingConvs = data.conversations.filter((c: Conversation) => !currentIds.has(c.id));
-              if (missingConvs.length > 0) {
-                const merged = [...missingConvs, ...prevConvs];
-                try { localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(merged)); } catch {}
-                return merged;
-              }
-              return prevConvs;
+              setMessages((prevMsgs) => {
+                const combinedConvs = [...(data.conversations || []), ...prevConvs];
+                const combinedMsgs = { ...(data.messages || {}), ...prevMsgs };
+                const merged = mergeAndDeduplicateConversations(combinedConvs, combinedMsgs, currentUser?.id, allUsers);
+
+                try {
+                  localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(merged.conversations));
+                  localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(merged.messages));
+                } catch {}
+
+                return merged.messages;
+              });
+              const combinedConvs = [...(data.conversations || []), ...prevConvs];
+              const merged = mergeAndDeduplicateConversations(combinedConvs, messages, currentUser?.id, allUsers);
+              return merged.conversations;
             });
           }
         })
@@ -128,7 +279,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(syncInterval);
     };
-  }, []);
+  }, [currentUser?.id, allUsers, activeConversationId, messages]);
 
   const persistConversations = useCallback((updated: Conversation[]) => {
     setConversations(updated);
@@ -156,14 +307,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return messages[convId] || [];
   }, [messages]);
 
+  // Start or switch to a single unified 1-to-1 conversation
   const startDirectMessage = useCallback((targetUserId: string): string => {
     if (!currentUser) return '';
 
+    const canonicalConvId = getCanonicalDirectConvId(currentUser.id, targetUserId);
+
+    // Check if canonical conversation already exists
     const existing = conversations.find(
       (c) =>
         !c.isGroup &&
-        c.participantIds.includes(currentUser.id) &&
-        c.participantIds.includes(targetUserId)
+        (c.id === canonicalConvId ||
+          (c.participantIds.includes(currentUser.id) && c.participantIds.includes(targetUserId)))
     );
 
     if (existing) {
@@ -171,24 +326,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return existing.id;
     }
 
-    const targetUser = getUserById(targetUserId);
+    const targetUser = getUserById(targetUserId) || allUsers.find((u) => u.id === targetUserId);
     if (!targetUser) return '';
 
-    const newConvId = `conv-${currentUser.id}-${targetUserId}`;
     const newConv: Conversation = {
-      id: newConvId,
+      id: canonicalConvId,
       isGroup: false,
-      participantIds: [currentUser.id, targetUserId],
+      participantIds: [currentUser.id, targetUser.id],
       participants: [currentUser, targetUser],
       unreadCount: 0,
       updatedAt: new Date().toISOString(),
     };
 
-    const updatedConvs = [newConv, ...conversations];
+    const updatedConvs = [newConv, ...conversations.filter((c) => c.id !== canonicalConvId)];
     persistConversations(updatedConvs);
-    setActiveConversationId(newConvId);
-    return newConvId;
-  }, [currentUser, conversations, getUserById, persistConversations]);
+    setActiveConversationId(canonicalConvId);
+    return canonicalConvId;
+  }, [currentUser, conversations, getUserById, allUsers, persistConversations]);
 
   const createGroupChat = useCallback((groupName: string, memberUserIds: string[], groupAvatarUrl?: string): string => {
     if (!currentUser) return '';
@@ -307,6 +461,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     });
   }, [currentUser, activeConversationId, persistConversations]);
 
+  // Unified Send Message: Appends to existing conversation & moves it to top
   const sendMessage = useCallback((input: SendMessageInput) => {
     if (!currentUser) return;
 
@@ -319,6 +474,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     if (!convId) return;
 
+    // Find the conversation
     const currentConv = conversations.find((c) => c.id === convId);
     if (!targetReceiverId) {
       targetReceiverId = currentConv?.isGroup
@@ -326,9 +482,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         : currentConv?.participantIds.find((id) => id !== currentUser.id) || convId;
     }
 
+    // Determine canonical conversation ID for direct chats
+    let finalConvId = convId;
+    if (currentConv && !currentConv.isGroup && targetReceiverId) {
+      finalConvId = getCanonicalDirectConvId(currentUser.id, targetReceiverId);
+    }
+
     const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      conversationId: convId,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      conversationId: finalConvId,
       senderId: currentUser.id,
       receiverId: targetReceiverId,
       content: input.content,
@@ -340,29 +502,51 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
 
+    // 1. Append message to the single conversation history
     setMessages((prevMsgs) => {
-      const currentConvMessages = prevMsgs[convId!] || [];
+      const currentList = prevMsgs[finalConvId] || prevMsgs[convId!] || [];
       const updatedMessages = {
         ...prevMsgs,
-        [convId!]: [...currentConvMessages, newMessage],
+        [finalConvId]: [...currentList, newMessage],
       };
       persistMessages(updatedMessages);
       return updatedMessages;
     });
 
+    // 2. Update conversation record & move to the TOP of the sidebar
     setConversations((prevConvs) => {
-      const updatedConvs = prevConvs.map((c) =>
-        c.id === convId
-          ? {
-              ...c,
-              lastMessage: newMessage,
-              updatedAt: new Date().toISOString(),
-            }
-          : c
-      );
+      let matchedConv = prevConvs.find((c) => c.id === finalConvId || c.id === convId);
+      if (!matchedConv) {
+        const receiverProfile = getUserById(targetReceiverId!) || allUsers.find((u) => u.id === targetReceiverId);
+        matchedConv = {
+          id: finalConvId,
+          isGroup: false,
+          participantIds: [currentUser.id, targetReceiverId!],
+          participants: [currentUser, receiverProfile || currentUser],
+          unreadCount: 0,
+          updatedAt: newMessage.createdAt,
+          lastMessage: newMessage,
+        };
+      } else {
+        matchedConv = {
+          ...matchedConv,
+          id: finalConvId,
+          lastMessage: newMessage,
+          updatedAt: newMessage.createdAt,
+        };
+      }
+
+      // Filter out any other duplicate copies and place the updated conversation at index 0
+      const remaining = prevConvs.filter((c) => c.id !== finalConvId && c.id !== convId);
+      const updatedConvs = [matchedConv, ...remaining];
+
       persistConversations(updatedConvs);
       return updatedConvs;
     });
+
+    if (activeConversationId !== finalConvId) {
+      setActiveConversationId(finalConvId);
+    }
 
     sounds.playSend();
 
@@ -373,14 +557,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({
         action: 'send_message',
         payload: {
-          convId,
+          convId: finalConvId,
           message: newMessage,
           receiverId: targetReceiverId,
           sender: currentUser,
         },
       }),
     }).catch(() => {});
-  }, [currentUser, conversations, startDirectMessage, persistMessages, persistConversations]);
+  }, [currentUser, conversations, startDirectMessage, getUserById, allUsers, activeConversationId, persistMessages, persistConversations]);
 
   const addMessageReaction = useCallback((messageId: string, emoji: string) => {
     if (!currentUser || !activeConversationId) return;
@@ -473,3 +657,4 @@ export function useChat() {
   }
   return context;
 }
+

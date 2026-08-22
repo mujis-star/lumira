@@ -67,7 +67,7 @@ export default function DirectMessagePage() {
 
   const recipient = activeConversation?.isGroup
     ? null
-    : activeConversation?.participants.find((p) => p.id !== currentUser?.id);
+    : activeConversation?.participants.find((p) => p.id !== currentUser?.id) || activeConversation?.participants[0];
 
   // Auto mark active conversation as read
   useEffect(() => {
@@ -347,7 +347,7 @@ export default function DirectMessagePage() {
                     const isSelected = conv.id === activeConversationId;
                     const other = conv.isGroup
                       ? null
-                      : conv.participants.find((p) => p.id !== currentUser?.id);
+                      : conv.participants.find((p) => p.id !== currentUser?.id) || conv.participants[0];
 
                     return (
                       <div
