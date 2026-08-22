@@ -277,13 +277,13 @@ export default function AuthPage() {
       />
 
       {/* Ambient Cosmic Neon Background Glows */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-purple-600/25 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-blue-600/25 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-indigo-500/15 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-[400px] space-y-4">
-        {/* Main Glass Authentication Card */}
-        <div className="bg-[#121216]/90 backdrop-blur-xl border border-white/10 p-7 sm:p-8 space-y-5 rounded-3xl shadow-2xl shadow-purple-950/40">
+      <div className="relative z-10 w-full max-w-[420px] space-y-4">
+        {/* Main Frosted Glass Authentication Card */}
+        <div className="bg-[var(--glass-card-bg)] backdrop-blur-3xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] p-7 sm:p-8 space-y-5 rounded-3xl transition-all">
           {/* Official Lumira Logo Emblem & Brand Title */}
           <div className="flex flex-col items-center justify-center space-y-2 pt-1 text-center">
             <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-xl shadow-purple-500/30 ring-2 ring-purple-500/40 hover:scale-105 transition-transform">
@@ -300,21 +300,21 @@ export default function AuthPage() {
               <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">
                 Lumira
               </h1>
-              <p className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">
+              <p className="text-[10px] font-bold tracking-widest text-[var(--text-secondary)] uppercase">
                 Where Moments Illuminate
               </p>
             </div>
           </div>
 
           {/* Mode Tabs: Log In vs Sign Up */}
-          <div className="flex items-center p-1 bg-white/5 border border-white/10 rounded-2xl">
+          <div className="flex items-center p-1 bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] rounded-2xl">
             <button
               type="button"
               onClick={switchToLogin}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 mode === 'login'
-                  ? 'bg-[#0095f6] text-white shadow-md'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-[var(--accent-blue)] text-white shadow-md shadow-blue-500/30'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Log In
@@ -324,8 +324,8 @@ export default function AuthPage() {
               onClick={switchToSignup}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 mode === 'signup'
-                  ? 'bg-[#0095f6] text-white shadow-md'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-[var(--accent-blue)] text-white shadow-md shadow-blue-500/30'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Sign Up
@@ -334,7 +334,7 @@ export default function AuthPage() {
 
           {/* Error Message Box with 1-Click Action */}
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2">
+            <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2">
               <span className="leading-snug">{error}</span>
               <button
                 type="button"
@@ -351,41 +351,41 @@ export default function AuthPage() {
             <form onSubmit={handleLoginSubmit} className="space-y-3.5">
               {/* Email or Username */}
               <div>
-                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                <label className="text-[11px] font-bold text-[var(--text-secondary)] block mb-1">
                   Email or Username
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                   <input
                     type="text"
                     required
                     value={emailOrUsername}
                     onChange={(e) => setEmailOrUsername(e.target.value)}
                     placeholder="Enter email or username"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] focus:ring-1 focus:ring-[#0095f6] transition-colors"
+                    className="w-full pl-10 pr-3 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div>
-                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                <label className="text-[11px] font-bold text-[var(--text-secondary)] block mb-1">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] focus:ring-1 focus:ring-[#0095f6] transition-colors"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white cursor-pointer"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -396,19 +396,19 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={isLoading || !emailOrUsername.trim() || !password}
-                className="w-full py-3 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-2xl bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-hover)] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-lg shadow-blue-500/25 active:scale-98 cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>{isLoading ? 'Verifying Account...' : 'Log In'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
               <div className="text-center pt-1">
-                <p className="text-[11px] text-neutral-400">
+                <p className="text-[11px] text-[var(--text-secondary)]">
                   Don&apos;t have an account?{' '}
                   <button
                     type="button"
                     onClick={switchToSignup}
-                    className="text-[#0095f6] hover:underline font-bold cursor-pointer"
+                    className="text-[var(--accent-blue)] hover:underline font-bold cursor-pointer"
                   >
                     Sign up
                   </button>
@@ -422,7 +422,7 @@ export default function AuthPage() {
             <form onSubmit={handleSignupSubmit} className="space-y-3">
               {/* Full Name */}
               <div>
-                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                <label className="text-[11px] font-bold text-[var(--text-secondary)] block mb-1">
                   Full Name
                 </label>
                 <input
@@ -431,13 +431,13 @@ export default function AuthPage() {
                   value={signupFullName}
                   onChange={(e) => setSignupFullName(e.target.value)}
                   placeholder="e.g. Alex Rivera"
-                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
                 />
               </div>
 
               {/* Username */}
               <div>
-                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                <label className="text-[11px] font-bold text-[var(--text-secondary)] block mb-1">
                   Username
                 </label>
                 <input
@@ -446,35 +446,35 @@ export default function AuthPage() {
                   value={signupUsername}
                   onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
                   placeholder="e.g. alex.rivera"
-                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
-                  Email Address
+                <label className="text-[11px] font-bold text-[var(--text-secondary)] block mb-1">
+                  Email address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                   <input
                     type="email"
                     required
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                    placeholder="alex@example.com"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
                   />
                 </div>
               </div>
 
               {/* Password */}
               <div>
-                <label className="text-[11px] font-bold text-neutral-300 block mb-1">
+                <label className="text-[11px] font-bold text-[var(--text-secondary)] block mb-1">
                   Password (min 6 characters)
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
@@ -482,12 +482,12 @@ export default function AuthPage() {
                     value={signupPassword}
                     onChange={(e) => setSignupPassword(e.target.value)}
                     placeholder="Create a secure password"
-                    className="w-full pl-9 pr-10 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#0095f6] transition-colors"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white cursor-pointer"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -504,19 +504,19 @@ export default function AuthPage() {
                   !signupFullName.trim() ||
                   signupPassword.length < 6
                 }
-                className="w-full py-3 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md active:scale-98 cursor-pointer flex items-center justify-center gap-2 mt-1"
+                className="w-full py-3 rounded-2xl bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-hover)] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-lg shadow-blue-500/25 active:scale-98 cursor-pointer flex items-center justify-center gap-2 mt-1"
               >
                 <span>{isLoading ? 'Creating Account...' : 'Sign Up'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
               <div className="text-center pt-1">
-                <p className="text-[11px] text-neutral-400">
+                <p className="text-[11px] text-[var(--text-secondary)]">
                   Already have an account?{' '}
                   <button
                     type="button"
                     onClick={switchToLogin}
-                    className="text-[#0095f6] hover:underline font-bold cursor-pointer"
+                    className="text-[var(--accent-blue)] hover:underline font-bold cursor-pointer"
                   >
                     Log in
                   </button>
@@ -527,22 +527,19 @@ export default function AuthPage() {
 
           {/* Divider */}
           <div className="flex items-center gap-3 py-1">
-            <div className="flex-1 h-[1px] bg-white/10" />
-            <span className="text-[10px] font-bold tracking-wider text-neutral-400 uppercase">
+            <div className="flex-1 h-[1px] bg-[var(--glass-border-subtle)]" />
+            <span className="text-[10px] font-bold tracking-wider text-[var(--text-secondary)] uppercase">
               OR
             </span>
-            <div className="flex-1 h-[1px] bg-white/10" />
+            <div className="flex-1 h-[1px] bg-[var(--glass-border-subtle)]" />
           </div>
 
-          {/* Official Native Google Identity Services Button Container */}
-          <div className="w-full flex flex-col items-center justify-center space-y-2">
-            <div ref={googleButtonRef} className="w-full flex justify-center" />
-            
-            {/* Google Action Button */}
+          {/* Single Clean Google Sign-In Action */}
+          <div className="w-full">
             <button
               type="button"
               onClick={handleOpenGoogleChooser}
-              className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -567,14 +564,16 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="text-center text-[11px] text-neutral-500 space-y-1">
-          <p className="flex items-center justify-center gap-1 font-medium text-neutral-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+        {/* Footer Security Badging */}
+        <div className="text-center space-y-1 pt-1 select-none">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full backdrop-blur-md">
+            <ShieldCheck className="w-3.5 h-3.5" />
             <span>Secure Password Protection Powered by Lumira</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-secondary)] opacity-75">
+            © 2026 Lumira from Lumira Labs
           </p>
-          <p>© 2026 Lumira from Lumira Labs</p>
-        </footer>
+        </div>
       </div>
 
       {/* Official Google Account Chooser Popup Modal */}
