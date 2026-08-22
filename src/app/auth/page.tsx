@@ -149,14 +149,17 @@ export default function AuthPage() {
           googleButtonRef.current.innerHTML = '';
           window.google.accounts.id.renderButton(googleButtonRef.current, {
             type: 'standard',
-            theme: 'outline',
+            theme: 'filled_black',
             size: 'large',
             text: 'continue_with',
-            shape: 'rectangular',
+            shape: 'pill',
             logo_alignment: 'left',
-            width: 330,
+            width: 340,
           });
         }
+
+        // Trigger Google One-Tap Prompt
+        window.google.accounts.id.prompt();
       } catch (err) {
         console.warn('Google GSI initialization warning:', err);
       }
@@ -534,12 +537,15 @@ export default function AuthPage() {
             <div className="flex-1 h-[1px] bg-[var(--glass-border-subtle)]" />
           </div>
 
-          {/* Single Clean Google Sign-In Action */}
-          <div className="w-full">
+          {/* Official Google Identity Services Container */}
+          <div className="w-full flex flex-col items-center justify-center space-y-2">
+            <div ref={googleButtonRef} className="w-full flex justify-center min-h-[44px]" />
+
+            {/* Google Chooser Modal Button */}
             <button
               type="button"
               onClick={handleOpenGoogleChooser}
-              className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer backdrop-blur-md"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -559,7 +565,7 @@ export default function AuthPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>Choose Another Google Account</span>
             </button>
           </div>
         </div>
