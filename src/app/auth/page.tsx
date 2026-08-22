@@ -1,12 +1,37 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { GoogleSignInModal } from '@/components/auth/GoogleSignInModal';
 import { sounds, triggerConfetti } from '@/lib/utils';
 import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus } from 'lucide-react';
+
+interface GoogleCredentialResponse {
+  credential?: string;
+  select_by?: string;
+}
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+          }) => void;
+          prompt: (notification?: (notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void) => void;
+          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+        };
+      };
+    };
+  }
+}
 
 export default function AuthPage() {
   const router = useRouter();
@@ -35,6 +60,59 @@ export default function AuthPage() {
       router.replace('/');
     }
   }, [currentUser, isAuthLoading, router]);
+
+  // Handle Google Identity Services (GSI) Token Response
+  const handleGoogleGsiResponse = useCallback(
+    async (response: GoogleCredentialResponse) => {
+      if (!response.credential) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: response.credential }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Failed to authenticate with Google token');
+        }
+
+        await loginWithGoogle(data.user.email, data.user.displayName, data.user.avatarUrl);
+        sounds.playSend();
+        triggerConfetti(0.5, 0.5);
+        router.push('/');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Google token authentication failed.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [loginWithGoogle, router]
+  );
+
+  // Initialize Google GSI
+  const initGoogleGSI = useCallback(() => {
+    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+      const clientId =
+        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+        '1088487426177-example.apps.googleusercontent.com';
+
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleGsiResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+      } catch (err) {
+        console.warn('GSI Init warning:', err);
+      }
+    }
+  }, [handleGoogleGsiResponse]);
 
   const switchToSignup = () => {
     setMode('signup');
@@ -112,8 +190,31 @@ export default function AuthPage() {
     }
   };
 
+  const handleGoogleButtonClick = () => {
+    // Try Google GSI Prompt first if client ID is set
+    if (
+      typeof window !== 'undefined' &&
+      window.google?.accounts?.id &&
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    ) {
+      try {
+        window.google.accounts.id.prompt();
+        return;
+      } catch {}
+    }
+    // Open Account Chooser Dialog
+    setIsGoogleModalOpen(true);
+  };
+
   return (
     <div className="relative min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 select-none overflow-hidden">
+      {/* Official Google Identity Services SDK Script */}
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onLoad={initGoogleGSI}
+      />
+
       {/* Ambient Cosmic Neon Background Glows */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
@@ -378,7 +479,7 @@ export default function AuthPage() {
           {/* Google OAuth Button */}
           <button
             type="button"
-            onClick={() => setIsGoogleModalOpen(true)}
+            onClick={handleGoogleButtonClick}
             disabled={isLoading}
             className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50"
           >
