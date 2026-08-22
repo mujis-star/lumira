@@ -539,7 +539,11 @@ export default function AuthPage() {
 
           {/* Official Native Google Identity Services Button */}
           <div className="w-full flex justify-center py-1">
-            <div ref={googleButtonRef} className="w-full flex justify-center min-h-[44px]" />
+            <div
+              ref={googleButtonRef}
+              onClick={handleOpenGoogleChooser}
+              className="w-full flex justify-center min-h-[44px] cursor-pointer"
+            />
           </div>
         </div>
 

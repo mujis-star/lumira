@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePost } from '@/context/PostContext';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/ui/Avatar';
+import { ShareModal } from '@/components/feed/ShareModal';
 import { formatNumber } from '@/lib/utils';
 import {
   Heart,
@@ -25,6 +26,7 @@ export default function ReelsPage() {
   const { reels, toggleLikeReel, toggleBookmarkReel } = usePost();
   const [activeReelIndex, setActiveReelIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   const displayReels = reels.length > 0 ? reels : [];
   const safeIndex = Math.min(activeReelIndex, Math.max(0, displayReels.length - 1));
@@ -165,7 +167,11 @@ export default function ReelsPage() {
             </button>
 
             {/* Share */}
-            <button className="flex flex-col items-center gap-1 group cursor-pointer">
+            <button
+              onClick={() => setIsShareOpen(true)}
+              className="flex flex-col items-center gap-1 group cursor-pointer"
+              aria-label="Share reel"
+            >
               <div className="p-3 rounded-full bg-white/10 dark:bg-black/50 backdrop-blur-2xl border border-white/25 shadow-lg group-hover:bg-white/20 dark:group-hover:bg-black/70 group-hover:scale-110 transition-all active:scale-110">
                 <Send className="w-5 h-5" />
               </div>
@@ -218,6 +224,13 @@ export default function ReelsPage() {
           </div>
         </div>
       </div>
+
+      {/* Share Modal for Reels */}
+      <ShareModal
+        reel={currentReel}
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+      />
     </AppShell>
   );
 }

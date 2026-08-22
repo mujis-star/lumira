@@ -11,7 +11,7 @@ import { formatTimeAgo } from '@/lib/utils';
 import { Heart } from 'lucide-react';
 
 export default function NotificationsPage() {
-  const { notifications, filteredNotifications, filter, setFilter, markAllAsRead } = useNotification();
+  const { filteredNotifications, filter, setFilter, markAllAsRead } = useNotification();
   const { toggleFollow, isFollowing } = useAuth();
 
   useEffect(() => {
