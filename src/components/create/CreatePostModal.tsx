@@ -169,13 +169,13 @@ export function CreatePostModal({ isOpen, onClose, initialAudioTrack }: CreatePo
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size={step === 3 ? 'xl' : 'lg'}>
-      <div className="bg-[var(--modal-bg)] rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-[var(--glass-modal-bg)] backdrop-blur-3xl rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
         {/* Header Bar */}
-        <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-[var(--glass-border-subtle)] flex items-center justify-between">
           {step > 1 ? (
             <button
               onClick={() => setStep((s) => (s - 1) as 1 | 2)}
-              className="p-1 text-[var(--text-primary)] hover:opacity-70 cursor-pointer"
+              className="p-1.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -184,13 +184,13 @@ export function CreatePostModal({ isOpen, onClose, initialAudioTrack }: CreatePo
           )}
 
           {step === 1 ? (
-            <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-0.5 rounded-lg text-xs font-semibold">
+            <div className="flex items-center bg-[var(--glass-bg-hover)] p-1 rounded-2xl border border-[var(--glass-border-subtle)] text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setCreateType('post')}
-                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                   createType === 'post'
-                    ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-xs'
+                    ? 'bg-[var(--accent-blue)] text-white shadow-xs'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -204,9 +204,9 @@ export function CreatePostModal({ isOpen, onClose, initialAudioTrack }: CreatePo
                   setSelectedMediaUrl(SAMPLE_GALLERY_ASSETS[0].url);
                   setAspectRatio('portrait');
                 }}
-                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                   createType === 'reel'
-                    ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-xs'
+                    ? 'bg-[var(--accent-blue)] text-white shadow-xs'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -218,7 +218,7 @@ export function CreatePostModal({ isOpen, onClose, initialAudioTrack }: CreatePo
                   onClose();
                   openStoryCreator();
                 }}
-                className="px-3 py-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
               >
                 Story
               </button>
@@ -235,7 +235,7 @@ export function CreatePostModal({ isOpen, onClose, initialAudioTrack }: CreatePo
           {step === 2 && (
             <button
               onClick={() => setStep(3)}
-              className="text-xs font-bold text-[#0095f6] hover:text-[#1877f2] cursor-pointer"
+              className="text-xs font-bold px-4 py-1.5 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] text-white shadow-sm transition-transform active:scale-95 cursor-pointer"
             >
               Next
             </button>
@@ -245,7 +245,7 @@ export function CreatePostModal({ isOpen, onClose, initialAudioTrack }: CreatePo
             <button
               onClick={handlePublish}
               disabled={isPublishing}
-              className="text-xs font-bold text-[#0095f6] hover:text-[#1877f2] disabled:opacity-50 cursor-pointer"
+              className="text-xs font-bold px-5 py-2 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] text-white shadow-md transition-transform active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {isPublishing ? 'Sharing...' : 'Share'}
             </button>

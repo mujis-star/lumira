@@ -53,37 +53,37 @@ export function Modal({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          {/* Backdrop Blur */}
+          {/* Ambient Glass Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-all"
+            className="fixed inset-0 bg-black/60 backdrop-blur-md transition-all"
           />
 
-          {/* Modal Content Box */}
+          {/* Modal Content Box: Frosted Glass Panel */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            initial={{ opacity: 0, scale: 0.94, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ type: 'spring', duration: 0.25, bounce: 0.15 }}
-            className={`relative w-full ${maxWidthClasses[chosenWidth]} bg-[var(--modal-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden z-10 ${className}`}
+            exit={{ opacity: 0, scale: 0.94, y: 15 }}
+            transition={{ type: 'spring', duration: 0.28, bounce: 0.12 }}
+            className={`relative w-full ${maxWidthClasses[chosenWidth]} bg-[var(--glass-modal-bg)] backdrop-blur-3xl border border-[var(--glass-border-highlight)] shadow-[var(--glass-shadow-lg)] rounded-3xl overflow-hidden z-10 ${className}`}
           >
             {/* Header if Title exists */}
             {title && (
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--border-color)]">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--glass-border-subtle)]">
                 <span className="w-5" />
-                <h3 className="text-sm font-bold text-[var(--text-primary)] truncate text-center">
+                <div className="text-sm font-bold text-[var(--text-primary)] truncate text-center flex-1">
                   {title}
-                </h3>
+                </div>
                 {showCloseButton ? (
                   <button
                     onClick={onClose}
-                    className="p-1 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] transition-colors cursor-pointer"
                     aria-label="Close"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 ) : (
                   <span className="w-5" />

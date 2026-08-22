@@ -130,14 +130,14 @@ export default function AudioDetailsPage({
 
   return (
     <AppShell title={`${track.title} • ${track.artist}`}>
-      <div className="max-w-[935px] mx-auto py-6 sm:py-10 px-4 sm:px-8 space-y-8 select-none">
-        {/* Track Hero Header */}
-        <header className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-10 pb-6 border-b border-[var(--border-color)]">
+      <div className="max-w-[935px] mx-auto py-4 sm:py-8 px-4 sm:px-6 space-y-6 select-none">
+        {/* Frosted Glass Track Hero Header */}
+        <header className="p-6 sm:p-8 rounded-3xl bg-[var(--glass-card-bg)] backdrop-blur-3xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-10 transition-all">
           {/* Vinyl / Cover Artwork */}
           <div className="relative group">
             <div
               onClick={handleTogglePlay}
-              className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 cursor-pointer"
+              className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-3xl overflow-hidden shadow-2xl bg-neutral-900 border border-[var(--glass-border)] cursor-pointer"
             >
               <Image
                 src={track.coverImage}
@@ -151,7 +151,7 @@ export default function AudioDetailsPage({
 
               {/* Play / Pause Center Overlay */}
               <div className="absolute inset-0 bg-black/35 flex items-center justify-center text-white transition-opacity">
-                <div className="p-3.5 rounded-full bg-[#0095f6] text-white shadow-lg group-hover:scale-110 transition-transform">
+                <div className="p-4 rounded-full bg-[#0095f6] text-white shadow-xl group-hover:scale-110 active:scale-95 transition-transform">
                   {isPlaying ? (
                     <Pause className="w-6 h-6 fill-white" />
                   ) : (
@@ -166,14 +166,14 @@ export default function AudioDetailsPage({
           <div className="flex-1 text-center sm:text-left space-y-3">
             <div>
               <div className="flex items-center justify-center sm:justify-start gap-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-bold uppercase tracking-wider">
+                <span className="px-3 py-1 rounded-full bg-[var(--accent-blue)]/15 text-[var(--accent-blue)] text-[10px] font-bold uppercase tracking-wider border border-[var(--accent-blue)]/20">
                   {track.genre} Audio
                 </span>
                 <span className="text-[11px] text-[var(--text-secondary)]">
                   {track.licensingInfo || 'Lumira Audio'}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight mt-1">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight mt-1.5">
                 {track.title}
               </h1>
               <p className="text-sm font-semibold text-[var(--text-secondary)]">
@@ -199,7 +199,7 @@ export default function AudioDetailsPage({
               <button
                 type="button"
                 onClick={handleUseAudio}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] text-white text-xs font-bold shadow-md transition-transform active:scale-95 cursor-pointer"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-[#0095f6] hover:bg-[#1877f2] text-white text-xs font-bold shadow-md transition-transform active:scale-95 cursor-pointer"
               >
                 <Music className="w-4 h-4" />
                 <span>Use Audio</span>
@@ -209,8 +209,8 @@ export default function AudioDetailsPage({
               <button
                 type="button"
                 onClick={() => setIsSaved(!isSaved)}
-                className={`p-2.5 rounded-xl border border-[var(--border-color)] hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer ${
-                  isSaved ? 'text-[#0095f6]' : 'text-[var(--text-primary)]'
+                className={`p-2.5 rounded-2xl border border-[var(--glass-border)] hover:bg-[var(--glass-bg-hover)] transition-colors cursor-pointer ${
+                  isSaved ? 'text-[#0095f6] bg-[var(--accent-blue)]/10' : 'text-[var(--text-primary)]'
                 }`}
                 aria-label="Save audio"
                 title="Save audio track"
@@ -223,13 +223,13 @@ export default function AudioDetailsPage({
 
         {/* Media Grid Tabs: Posts vs Reels */}
         <div className="space-y-4">
-          <div className="flex items-center justify-center gap-8 border-b border-[var(--border-color)] text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+          <div className="flex items-center justify-center gap-8 border-b border-[var(--glass-border-subtle)] text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
             <button
               type="button"
               onClick={() => setActiveTab('posts')}
               className={`flex items-center gap-2 py-3 border-b-2 -mb-[1px] transition-colors cursor-pointer ${
                 activeTab === 'posts'
-                  ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                  ? 'border-[var(--accent-blue)] text-[var(--text-primary)] font-extrabold'
                   : 'border-transparent hover:text-[var(--text-primary)]'
               }`}
             >
@@ -242,7 +242,7 @@ export default function AudioDetailsPage({
               onClick={() => setActiveTab('reels')}
               className={`flex items-center gap-2 py-3 border-b-2 -mb-[1px] transition-colors cursor-pointer ${
                 activeTab === 'reels'
-                  ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                  ? 'border-[var(--accent-blue)] text-[var(--text-primary)] font-extrabold'
                   : 'border-transparent hover:text-[var(--text-primary)]'
               }`}
             >

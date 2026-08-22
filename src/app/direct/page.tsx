@@ -153,16 +153,16 @@ export default function DirectMessagePage() {
 
   return (
     <AppShell title="Direct">
-      <div className="max-w-[975px] mx-auto py-2 sm:py-6 px-0 sm:px-4 h-[calc(100vh-80px)]">
-        <div className="w-full h-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl overflow-hidden flex select-none">
+      <div className="max-w-[975px] mx-auto py-1 sm:py-4 px-0 sm:px-4 h-[calc(100vh-90px)]">
+        <div className="w-full h-full bg-[var(--glass-card-bg)] backdrop-blur-3xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] rounded-3xl overflow-hidden flex select-none">
           {/* Left Column: Conversations List */}
           <div
-            className={`w-full md:w-[350px] border-r border-[var(--border-color)] flex flex-col ${
+            className={`w-full md:w-[350px] border-r border-[var(--glass-border-subtle)] flex flex-col bg-transparent ${
               activeConversationId ? 'hidden md:flex' : 'flex'
             }`}
           >
             {/* Header */}
-            <div className="px-4 py-3.5 border-b border-[var(--border-color)] flex items-center justify-between">
+            <div className="px-4 py-3.5 border-b border-[var(--glass-border-subtle)] flex items-center justify-between">
               <span className="text-base font-bold text-[var(--text-primary)] truncate">
                 {currentUser?.username || 'Messages'}
               </span>
@@ -172,7 +172,7 @@ export default function DirectMessagePage() {
                     setIsNewChatOpen(true);
                     setChatCreationTab('direct');
                   }}
-                  className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[var(--text-primary)] transition-colors cursor-pointer"
+                  className="p-2 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer"
                   aria-label="New Message or Group"
                   title="New message or group"
                 >
@@ -339,7 +339,7 @@ export default function DirectMessagePage() {
                     onClick={() => {
                       if (activeConversation.isGroup) setIsGroupDetailsOpen(true);
                     }}
-                    className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                    className="p-2 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer"
                     title={activeConversation.isGroup ? 'Group Info' : 'Details'}
                   >
                     <Info className="w-5 h-5 stroke-[1.75]" />
@@ -348,7 +348,7 @@ export default function DirectMessagePage() {
               </div>
 
               {/* Messages Thread View */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[var(--bg-primary)]">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-transparent">
                 {activeMessages.map((msg) => {
                   const isOwn = msg.senderId === currentUser?.id;
                   const senderUser = allUsers.find((u) => u.id === msg.senderId) || (isOwn ? currentUser : null);
@@ -366,10 +366,10 @@ export default function DirectMessagePage() {
                         </div>
                       )}
 
-                      <div className={`flex items-end gap-2 max-w-[75%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`flex items-end gap-2 max-w-[78%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                         {/* Media image message */}
                         {msg.mediaUrl ? (
-                          <div className="rounded-2xl overflow-hidden shadow-md max-w-[280px]">
+                          <div className="rounded-3xl overflow-hidden shadow-lg border border-[var(--glass-border)] max-w-[280px]">
                             <Image
                               src={msg.mediaUrl}
                               alt="Media"
@@ -379,20 +379,20 @@ export default function DirectMessagePage() {
                               unoptimized
                             />
                             {msg.content && msg.content !== 'Shared an image' && (
-                              <p className={`p-2.5 text-xs ${isOwn ? 'bg-[#0095f6] text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-[var(--text-primary)]'}`}>
+                              <p className={`p-3 text-xs ${isOwn ? 'bg-gradient-to-r from-[#0095f6]/90 to-[#7857ff]/90 text-white' : 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)]'}`}>
                                 {msg.content}
                               </p>
                             )}
                           </div>
                         ) : msg.isAudioVoiceNote ? (
                           /* Voice note message */
-                          <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl ${
-                            isOwn ? 'bg-[#0095f6] text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-[var(--text-primary)]'
+                          <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl border ${
+                            isOwn ? 'bg-gradient-to-r from-[#0095f6]/90 to-[#7857ff]/90 border-white/20 text-white shadow-sm' : 'bg-[var(--glass-bg-hover)] border-[var(--glass-border)] text-[var(--text-primary)] shadow-sm'
                           }`}>
                             <button
                               type="button"
                               onClick={() => setPlayingVoiceId(playingVoiceId === msg.id ? null : msg.id)}
-                              className="p-1 rounded-full bg-white/20 hover:bg-white/30 cursor-pointer"
+                              className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 cursor-pointer transition-colors"
                             >
                               {playingVoiceId === msg.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
                             </button>
@@ -408,10 +408,10 @@ export default function DirectMessagePage() {
                         ) : (
                           /* Regular text message */
                           <div
-                            className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed break-words shadow-xs ${
+                            className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed break-words shadow-sm backdrop-blur-xl border ${
                               isOwn
-                                ? 'bg-[#0095f6] text-white rounded-br-xs'
-                                : 'bg-neutral-100 dark:bg-neutral-800 text-[var(--text-primary)] rounded-bl-xs'
+                                ? 'bg-gradient-to-r from-[#0095f6]/90 to-[#7857ff]/90 border-white/25 text-white rounded-br-xs'
+                                : 'bg-[var(--glass-bg-hover)] border-[var(--glass-border)] text-[var(--text-primary)] rounded-bl-xs'
                             }`}
                           >
                             <p>{msg.content}</p>
@@ -452,7 +452,7 @@ export default function DirectMessagePage() {
                                 setSelectedMsgIdForReaction(msg.id);
                                 setIsEmojiPickerOpen(true);
                               }}
-                              className="text-xs px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-[var(--border-color)] shadow-xs cursor-pointer hover:scale-110 transition-transform"
+                              className="text-xs px-2 py-0.5 rounded-full bg-[var(--glass-bg-hover)] border border-[var(--glass-border)] shadow-xs cursor-pointer hover:scale-110 transition-transform"
                             >
                               {r.emoji}
                             </span>
@@ -466,9 +466,9 @@ export default function DirectMessagePage() {
               </div>
 
               {/* Bottom Message Input Bar */}
-              <div className="p-3 border-t border-[var(--border-color)] bg-[var(--bg-primary)]">
+              <div className="p-3 border-t border-[var(--glass-border-subtle)] bg-[var(--glass-modal-bg)] backdrop-blur-2xl">
                 {selectedMediaUrl && (
-                  <div className="relative w-16 h-16 mb-2 rounded-xl overflow-hidden border border-[var(--border-color)]">
+                  <div className="relative w-16 h-16 mb-2 rounded-2xl overflow-hidden border border-[var(--glass-border)] shadow-sm">
                     <Image src={selectedMediaUrl} alt="Selected attachment" fill className="object-cover" unoptimized />
                     <button
                       type="button"
@@ -492,7 +492,7 @@ export default function DirectMessagePage() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                    className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] transition-colors cursor-pointer"
                     title="Send image"
                   >
                     <ImageIcon className="w-5 h-5" />
@@ -501,7 +501,7 @@ export default function DirectMessagePage() {
                   <button
                     type="button"
                     onClick={handleSendVoiceNote}
-                    className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                    className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] transition-colors cursor-pointer"
                     title="Send voice note"
                   >
                     <Mic className="w-5 h-5" />
@@ -513,7 +513,7 @@ export default function DirectMessagePage() {
                       setSelectedMsgIdForReaction(null);
                       setIsEmojiPickerOpen(true);
                     }}
-                    className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                    className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] transition-colors cursor-pointer"
                     title="Emoji picker"
                   >
                     <Smile className="w-5 h-5" />
@@ -524,13 +524,13 @@ export default function DirectMessagePage() {
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     placeholder={activeConversation.isGroup ? `Message ${activeConversation.groupName}...` : `Message @${recipient?.username}...`}
-                    className="flex-1 px-4 py-2.5 rounded-full bg-[var(--input-bg)] text-xs text-[var(--text-primary)] focus:outline-none border border-[var(--border-color)] placeholder-[var(--text-secondary)]"
+                    className="flex-1 px-4 py-2.5 rounded-full bg-[var(--glass-input-bg)] text-xs text-[var(--text-primary)] focus:outline-none border border-[var(--glass-border)] placeholder-[var(--text-secondary)] focus:border-[var(--accent-blue)] transition-colors"
                   />
 
                   {messageText.trim() || selectedMediaUrl ? (
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-full bg-[#0095f6] hover:bg-[#1877f2] text-white text-xs font-bold transition-colors cursor-pointer"
+                      className="px-5 py-2.5 rounded-full bg-[#0095f6] hover:bg-[#1877f2] text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
                     >
                       Send
                     </button>

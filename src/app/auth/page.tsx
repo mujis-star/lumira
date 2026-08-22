@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { GoogleSignInModal } from '@/components/auth/GoogleSignInModal';
 import { sounds, triggerConfetti } from '@/lib/utils';
 import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus } from 'lucide-react';
 
@@ -26,7 +25,19 @@ declare global {
             cancel_on_tap_outside?: boolean;
           }) => void;
           prompt: (notification?: (notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void) => void;
-          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              type?: 'standard' | 'icon';
+              theme?: 'outline' | 'filled_blue' | 'filled_black';
+              size?: 'large' | 'medium' | 'small';
+              text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
+              shape?: 'rectangular' | 'pill' | 'circle' | 'square';
+              logo_alignment?: 'left' | 'center';
+              width?: number | string;
+              locale?: string;
+            }
+          ) => void;
         };
       };
     };
@@ -35,7 +46,7 @@ declare global {
 
 export default function AuthPage() {
   const router = useRouter();
-  const { currentUser, savedAccounts, isLoading: isAuthLoading, login, signup, loginWithGoogle } = useAuth();
+  const { currentUser, isLoading: isAuthLoading, login, signup, loginWithGoogle } = useAuth();
 
   // Mode: 'login' | 'signup'
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -51,8 +62,8 @@ export default function AuthPage() {
   // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   // If already authenticated, redirect to home feed
   useEffect(() => {
@@ -61,7 +72,7 @@ export default function AuthPage() {
     }
   }, [currentUser, isAuthLoading, router]);
 
-  // Handle Google Identity Services (GSI) Token Response
+  // Handle REAL Google Token Callback from accounts.google.com
   const handleGoogleGsiResponse = useCallback(
     async (response: GoogleCredentialResponse) => {
       if (!response.credential) return;
@@ -70,6 +81,7 @@ export default function AuthPage() {
       setError(null);
 
       try {
+        // Verify genuine Google JWT ID token with backend
         const res = await fetch('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -78,7 +90,7 @@ export default function AuthPage() {
 
         const data = await res.json();
         if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Failed to authenticate with Google token');
+          throw new Error(data.error || 'Failed to authenticate Google account with server.');
         }
 
         await loginWithGoogle(data.user.email, data.user.displayName, data.user.avatarUrl);
@@ -86,7 +98,7 @@ export default function AuthPage() {
         triggerConfetti(0.5, 0.5);
         router.push('/');
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Google token authentication failed.');
+        setError(err instanceof Error ? err.message : 'Google token verification failed.');
       } finally {
         setIsLoading(false);
       }
@@ -94,7 +106,7 @@ export default function AuthPage() {
     [loginWithGoogle, router]
   );
 
-  // Initialize Google GSI
+  // Initialize and render Native Google Identity Services Button
   const initGoogleGSI = useCallback(() => {
     if (typeof window !== 'undefined' && window.google?.accounts?.id) {
       const clientId =
@@ -108,11 +120,28 @@ export default function AuthPage() {
           auto_select: false,
           cancel_on_tap_outside: true,
         });
+
+        if (googleButtonRef.current) {
+          googleButtonRef.current.innerHTML = '';
+          window.google.accounts.id.renderButton(googleButtonRef.current, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: 330,
+          });
+        }
       } catch (err) {
-        console.warn('GSI Init warning:', err);
+        console.warn('Google GSI initialization warning:', err);
       }
     }
   }, [handleGoogleGsiResponse]);
+
+  useEffect(() => {
+    initGoogleGSI();
+  }, [initGoogleGSI]);
 
   const switchToSignup = () => {
     setMode('signup');
@@ -174,36 +203,14 @@ export default function AuthPage() {
     }
   };
 
-  const handleGoogleAccountSelected = async (email: string, displayName: string, avatarUrl?: string) => {
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      await loginWithGoogle(email, displayName, avatarUrl);
-      sounds.playSend();
-      triggerConfetti(0.5, 0.5);
-      router.push('/');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google sign in failed.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleButtonClick = () => {
-    // Try Google GSI Prompt first if client ID is set
-    if (
-      typeof window !== 'undefined' &&
-      window.google?.accounts?.id &&
-      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-    ) {
+  const handleNativeGooglePrompt = () => {
+    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
       try {
         window.google.accounts.id.prompt();
-        return;
-      } catch {}
+      } catch (err) {
+        console.warn('Google prompt error:', err);
+      }
     }
-    // Open Account Chooser Dialog
-    setIsGoogleModalOpen(true);
   };
 
   return (
@@ -476,33 +483,37 @@ export default function AuthPage() {
             <div className="flex-1 h-[1px] bg-white/10" />
           </div>
 
-          {/* Google OAuth Button */}
-          <button
-            type="button"
-            onClick={handleGoogleButtonClick}
-            disabled={isLoading}
-            className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50"
-          >
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>Continue with Google</span>
-          </button>
+          {/* Official Native Google Identity Services Button Container */}
+          <div className="w-full flex flex-col items-center justify-center space-y-2">
+            <div ref={googleButtonRef} className="w-full flex justify-center" />
+            
+            {/* Fallback button if GSI script is still mounting */}
+            <button
+              type="button"
+              onClick={handleNativeGooglePrompt}
+              className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-98 shadow-md hover:shadow-lg cursor-pointer"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+          </div>
         </div>
 
         {/* Footer */}
@@ -514,14 +525,6 @@ export default function AuthPage() {
           <p>© 2026 Lumira from Lumira Labs</p>
         </footer>
       </div>
-
-      {/* Official Google Sign-In Account Chooser Modal */}
-      <GoogleSignInModal
-        isOpen={isGoogleModalOpen}
-        onClose={() => setIsGoogleModalOpen(false)}
-        onSelectAccount={handleGoogleAccountSelected}
-        savedAccounts={savedAccounts}
-      />
     </div>
   );
 }

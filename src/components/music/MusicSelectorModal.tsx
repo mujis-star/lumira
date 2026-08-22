@@ -171,11 +171,11 @@ export function MusicSelectorModal({
       title={isTrimming ? 'Trim Audio Segment' : 'Select Music'}
       size="md"
     >
-      <div className="p-4 space-y-4 select-none bg-[var(--modal-bg)] max-h-[85vh] flex flex-col">
+      <div className="p-4 space-y-4 select-none bg-transparent max-h-[85vh] flex flex-col">
         {!isTrimming ? (
           /* STEP 1: Search & Browse Music List */
           <>
-            {/* Search Input */}
+            {/* Glass Search Input */}
             <div className="relative shrink-0">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
               <input
@@ -183,7 +183,7 @@ export function MusicSelectorModal({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search songs, artists, or albums..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--input-bg)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] border border-[var(--border-color)] focus:outline-none focus:ring-1 focus:ring-[#0095f6]"
+                className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] border border-[var(--glass-border)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
                 autoFocus
               />
             </div>
@@ -195,10 +195,10 @@ export function MusicSelectorModal({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveGenre(tab.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     activeGenre === tab.id
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                      : 'bg-neutral-100 dark:bg-neutral-800 text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      ? 'bg-[var(--accent-blue)] text-white shadow-sm'
+                      : 'bg-[var(--glass-bg-hover)] border border-[var(--glass-border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   {tab.label}
@@ -207,7 +207,7 @@ export function MusicSelectorModal({
             </div>
 
             {/* Track Results List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-[var(--border-subtle)] space-y-1 pr-1">
+            <div className="flex-1 overflow-y-auto divide-y divide-[var(--glass-border-subtle)] space-y-1 pr-1">
               {isLoading ? (
                 <div className="py-12 text-center text-xs text-[var(--text-secondary)] animate-pulse">
                   Searching music catalog...
@@ -225,12 +225,12 @@ export function MusicSelectorModal({
                     <div
                       key={track.id}
                       onClick={() => handleSelectTrackForTrimming(track)}
-                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors cursor-pointer group"
+                      className="flex items-center justify-between p-3 rounded-2xl hover:bg-[var(--glass-bg-hover)] border border-transparent hover:border-[var(--glass-border-subtle)] transition-all cursor-pointer group"
                     >
                       {/* Left: Artwork + Title + Artist */}
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         {/* Cover with Play Overlay */}
-                        <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 shadow-sm">
+                        <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 shrink-0 shadow-sm border border-[var(--glass-border)]">
                           <Image
                             src={track.coverImage}
                             alt={track.title}
@@ -287,7 +287,7 @@ export function MusicSelectorModal({
                       <button
                         type="button"
                         onClick={() => handleSelectTrackForTrimming(track)}
-                        className="px-3 py-1.5 rounded-lg bg-[#0095f6]/10 hover:bg-[#0095f6] text-[#0095f6] hover:text-white text-xs font-bold transition-colors cursor-pointer shrink-0 ml-2"
+                        className="px-3.5 py-1.5 rounded-xl bg-[var(--accent-blue)]/10 hover:bg-[var(--accent-blue)] text-[var(--accent-blue)] hover:text-white text-xs font-bold transition-all cursor-pointer shrink-0 ml-2"
                       >
                         Select
                       </button>
@@ -302,8 +302,8 @@ export function MusicSelectorModal({
           selectedTrack && (
             <div className="space-y-5">
               {/* Selected Track Banner */}
-              <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-neutral-100 dark:bg-neutral-800/80 border border-[var(--border-color)]">
-                <div className="relative w-14 h-14 rounded-xl overflow-hidden shadow shrink-0">
+              <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-[var(--glass-bg-hover)] border border-[var(--glass-border)] backdrop-blur-xl">
+                <div className="relative w-14 h-14 rounded-2xl overflow-hidden shadow-sm shrink-0 border border-white/20">
                   <Image
                     src={selectedTrack.coverImage}
                     alt={selectedTrack.title}
@@ -331,7 +331,7 @@ export function MusicSelectorModal({
                   <p className="text-xs text-[var(--text-secondary)] truncate">
                     {selectedTrack.artist}
                   </p>
-                  <p className="text-[11px] text-blue-500 font-semibold mt-0.5">
+                  <p className="text-[11px] text-[var(--accent-blue)] font-semibold mt-0.5">
                     Clip: {startTime}s – {startTime + clipDuration}s ({clipDuration}s clip)
                   </p>
                 </div>
@@ -340,7 +340,7 @@ export function MusicSelectorModal({
               {/* Clip Duration Selector Tabs */}
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[var(--text-secondary)]">Clip Length:</span>
-                <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl">
+                <div className="flex items-center gap-1 bg-[var(--glass-bg-hover)] p-1 rounded-2xl border border-[var(--glass-border-subtle)]">
                   {([15, 30, 60] as const).map((d) => (
                     <button
                       key={d}
@@ -351,9 +351,9 @@ export function MusicSelectorModal({
                           setStartTime(Math.max(0, selectedTrack.duration - d));
                         }
                       }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         clipDuration === d
-                          ? 'bg-[#0095f6] text-white shadow-sm'
+                          ? 'bg-[var(--accent-blue)] text-white shadow-sm'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
@@ -371,7 +371,7 @@ export function MusicSelectorModal({
                 </div>
 
                 {/* Waveform Bars Representation */}
-                <div className="relative h-16 rounded-xl bg-neutral-200 dark:bg-neutral-800 flex items-center justify-between px-2 overflow-hidden">
+                <div className="relative h-18 rounded-2xl bg-[var(--glass-bg-hover)] backdrop-blur-xl border border-[var(--glass-border)] flex items-center justify-between px-3 overflow-hidden shadow-inner">
                   {Array.from({ length: 48 }).map((_, i) => {
                     const barHeight = 20 + Math.sin(i * 0.4) * 15 + Math.cos(i * 0.8) * 20;
                     const barTime = (i / 48) * selectedTrack.duration;
@@ -385,7 +385,7 @@ export function MusicSelectorModal({
                         className={`w-1 rounded-full transition-colors ${
                           isInsideClip
                             ? 'bg-[#0095f6]'
-                            : 'bg-neutral-400 dark:bg-neutral-600 opacity-40'
+                            : 'bg-neutral-400 dark:bg-neutral-600 opacity-35'
                         }`}
                       />
                     );
@@ -397,7 +397,7 @@ export function MusicSelectorModal({
                       left: `${(startTime / selectedTrack.duration) * 100}%`,
                       width: `${(clipDuration / selectedTrack.duration) * 100}%`,
                     }}
-                    className="absolute inset-y-0 border-2 border-[#0095f6] bg-blue-500/15 rounded-lg pointer-events-none"
+                    className="absolute inset-y-0 border-2 border-[#0095f6] bg-[#0095f6]/15 rounded-xl pointer-events-none"
                   />
                 </div>
 
@@ -414,7 +414,7 @@ export function MusicSelectorModal({
               </div>
 
               {/* Trimmer Actions */}
-              <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]">
+              <div className="flex items-center justify-between pt-2 border-t border-[var(--glass-border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setIsTrimming(false)}
@@ -427,7 +427,7 @@ export function MusicSelectorModal({
                   <button
                     type="button"
                     onClick={() => handleStartTimeChange(0)}
-                    className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] transition-colors cursor-pointer"
                     title="Reset to 0:00"
                   >
                     <RotateCcw className="w-4 h-4" />
@@ -436,7 +436,7 @@ export function MusicSelectorModal({
                   <button
                     type="button"
                     onClick={handleConfirmMusic}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0095f6] hover:bg-[#1877f2] text-white text-xs font-bold shadow transition-transform active:scale-95 cursor-pointer"
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-[#0095f6] hover:bg-[#1877f2] text-white text-xs font-bold shadow-md transition-transform active:scale-95 cursor-pointer"
                   >
                     <Check className="w-4 h-4 stroke-[2.5]" />
                     <span>Attach Music</span>

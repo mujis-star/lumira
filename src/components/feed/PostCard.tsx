@@ -135,29 +135,24 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <article className="bg-[var(--bg-primary)] border-b border-[var(--border-color)] pb-4 max-w-[470px] mx-auto w-full select-none">
-      {/* 0. Repost Attribution Banner */}
+    <article className="w-full bg-[var(--glass-card-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] rounded-3xl overflow-hidden mb-5 select-none transition-all hover:border-[var(--glass-border-highlight)] hover:shadow-[var(--glass-shadow-lg)]">
+      {/* Repost Header Banner */}
       {post.isRepost && post.repostAuthor && (
-        <div className="flex items-center gap-2 px-3 pt-2.5 pb-1 text-xs font-semibold text-[var(--text-secondary)]">
-          <Repeat className="w-3.5 h-3.5 text-emerald-500 stroke-[2.5]" />
-          <span>
-            <Link href={`/profile/${post.repostAuthor.username}`} className="text-[var(--text-primary)] hover:underline">
-              {post.repostAuthor.username}
-            </Link>{' '}
-            reposted
-          </span>
+        <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs text-emerald-500 font-semibold border-b border-[var(--glass-border-subtle)] bg-emerald-500/5">
+          <Repeat className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>{post.repostAuthor.displayName} reposted</span>
         </div>
       )}
 
       {/* Repost Note Quote if attached */}
       {post.repostNote && (
-        <div className="mx-3 mb-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border-l-2 border-emerald-500 text-xs text-[var(--text-primary)]">
+        <div className="mx-4 my-2 px-3 py-2 rounded-xl bg-emerald-500/10 border-l-2 border-emerald-500 text-xs text-[var(--text-primary)] backdrop-blur-sm">
           <p className="font-medium">&ldquo;{post.repostNote}&rdquo;</p>
         </div>
       )}
 
       {/* 1. Header (Avatar, Username, Location, Time, Options Menu) */}
-      <div className="flex items-center justify-between p-3">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--glass-border-subtle)]">
         <div className="flex items-center gap-3">
           <div
             onClick={() => {
@@ -309,61 +304,67 @@ export function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* 3. Action Buttons Row */}
-      <div className="p-3 pb-1 space-y-2">
+      <div className="p-4 space-y-2.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-[var(--text-primary)]">
-            {/* Like */}
+          <div className="flex items-center gap-3 text-[var(--text-primary)]">
+            {/* Like Button */}
             <button
               onClick={() => toggleLikePost(post.id)}
-              className="p-1 -m-1 hover:opacity-60 transition-transform active:scale-125 cursor-pointer"
+              className={`p-2 rounded-2xl transition-all active:scale-125 cursor-pointer ${
+                isLiked
+                  ? 'bg-rose-500/10 text-[#ff3040] shadow-sm'
+                  : 'hover:bg-[var(--glass-bg-hover)]'
+              }`}
               aria-label={isLiked ? 'Unlike' : 'Like'}
             >
               <Heart
-                className={`w-6 h-6 stroke-[1.75] ${
-                  isLiked ? 'text-[#ff3040] fill-[#ff3040] stroke-[#ff3040]' : ''
+                className={`w-5 h-5 stroke-[2] ${
+                  isLiked ? 'text-[#ff3040] fill-[#ff3040]' : ''
                 }`}
               />
             </button>
 
-            {/* Comment */}
+            {/* Comment Button */}
             <button
               onClick={() => setIsCommentsOpen(true)}
-              className="p-1 -m-1 hover:opacity-60 transition-opacity cursor-pointer"
+              className="p-2 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-all active:scale-110 cursor-pointer"
               aria-label="Comment"
             >
-              <MessageCircle className="w-6 h-6 stroke-[1.75]" />
+              <MessageCircle className="w-5 h-5 stroke-[1.75]" />
             </button>
 
-            {/* Repost */}
+            {/* Repost Button */}
             <button
               onClick={() => setIsRepostModalOpen(true)}
-              className={`p-1 -m-1 hover:opacity-60 transition-transform active:scale-125 cursor-pointer ${
-                isReposted ? 'text-emerald-500' : ''
+              className={`p-2 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-all active:scale-125 cursor-pointer ${
+                isReposted ? 'text-emerald-500 bg-emerald-500/10' : ''
               }`}
               aria-label={isReposted ? 'Undo repost' : 'Repost'}
               title={isReposted ? 'Undo repost' : 'Repost'}
             >
-              <Repeat className={`w-6 h-6 stroke-[1.75] ${isReposted ? 'stroke-[2.2]' : ''}`} />
+              <Repeat className={`w-5 h-5 stroke-[1.75] ${isReposted ? 'stroke-[2.2]' : ''}`} />
             </button>
 
-            {/* Share / Direct */}
+            {/* Share / Direct Button */}
             <button
               onClick={() => setIsShareOpen(true)}
-              className="p-1 -m-1 hover:opacity-60 transition-opacity cursor-pointer"
+              className="p-2 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-all active:scale-110 cursor-pointer"
               aria-label="Share post"
             >
-              <Send className="w-6 h-6 stroke-[1.75]" />
+              <Send className="w-5 h-5 stroke-[1.75]" />
             </button>
           </div>
 
-          {/* Bookmark */}
+          {/* Bookmark Button */}
           <button
             onClick={() => toggleBookmarkPost(post.id)}
-            className="p-1 -m-1 hover:opacity-60 transition-opacity cursor-pointer text-[var(--text-primary)]"
+            className={`p-2 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-all active:scale-110 cursor-pointer text-[var(--text-primary)] ${
+              isBookmarked ? 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]' : ''
+            }`}
             aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
           >
             <Bookmark
-              className={`w-6 h-6 stroke-[1.75] ${
+              className={`w-5 h-5 stroke-[1.75] ${
                 isBookmarked ? 'fill-current' : ''
               }`}
             />
@@ -388,7 +389,7 @@ export function PostCard({ post }: PostCardProps) {
         </div>
 
         {/* 5. Caption & Author */}
-        <div className="text-xs text-[var(--text-primary)] leading-normal space-y-0.5">
+        <div className="text-xs text-[var(--text-primary)] leading-relaxed space-y-0.5">
           <p>
             <Link href={`/profile/${post.author.username}`} className="font-bold mr-1.5 hover:underline">
               {post.author.username}
@@ -397,19 +398,24 @@ export function PostCard({ post }: PostCardProps) {
           </p>
         </div>
 
-        {/* Instagram-Style Interactive Music Track Row */}
+        {/* Glassmorphic Interactive Music Track Row */}
         {post.audioTrack && (
-          <div className="flex items-center gap-2 text-[11px] text-[var(--text-secondary)] font-medium pt-1">
+          <div className="flex items-center justify-between p-2 rounded-2xl bg-[var(--glass-bg-hover)] border border-[var(--glass-border-subtle)] backdrop-blur-md shadow-xs">
             <Link
               href={`/audio/${('trackId' in post.audioTrack && post.audioTrack.trackId) ? post.audioTrack.trackId : encodeURIComponent(post.audioTrack.title)}`}
-              className="inline-flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors group/audio max-w-full truncate"
+              className="inline-flex items-center gap-2 hover:opacity-80 transition-opacity group/audio min-w-0 flex-1 pr-2"
             >
-              <Music className="w-3.5 h-3.5 text-[var(--text-primary)] group-hover/audio:scale-110 transition-transform shrink-0" />
-              <span className="truncate font-semibold text-[var(--text-primary)]">
-                {post.audioTrack.title}
-              </span>
-              <span>•</span>
-              <span className="truncate">{post.audioTrack.artist}</span>
+              <div className="p-1.5 rounded-full bg-[var(--accent-blue)]/15 text-[var(--accent-blue)] shrink-0 group-hover/audio:scale-110 transition-transform">
+                <Music className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 truncate text-[11px]">
+                <span className="font-bold text-[var(--text-primary)] truncate block">
+                  {post.audioTrack.title}
+                </span>
+                <span className="text-[10px] text-[var(--text-secondary)] truncate block">
+                  {post.audioTrack.artist}
+                </span>
+              </div>
             </Link>
 
             {/* Quick Play/Pause background track */}
@@ -431,7 +437,7 @@ export function PostCard({ post }: PostCardProps) {
                   }
                 }
               }}
-              className="p-1 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 text-[10px] text-blue-500 font-bold flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+              className="p-2 rounded-xl bg-[var(--accent-blue)]/10 hover:bg-[var(--accent-blue)]/20 text-[var(--accent-blue)] text-[10px] font-bold flex items-center justify-center shrink-0 cursor-pointer transition-colors shadow-xs"
               title="Play background track"
             >
               <span className="animate-pulse">ılı</span>
@@ -453,7 +459,7 @@ export function PostCard({ post }: PostCardProps) {
         {post.allowComments && (
           <form
             onSubmit={handleInlineCommentSubmit}
-            className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] mt-2"
+            className="flex items-center justify-between pt-2.5 border-t border-[var(--glass-border-subtle)] mt-2"
           >
             <input
               type="text"
@@ -474,10 +480,10 @@ export function PostCard({ post }: PostCardProps) {
             <button
               type="button"
               onClick={() => setIsEmojiPickerOpen(true)}
-              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] ml-2 transition-colors cursor-pointer"
+              className="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] ml-2 transition-colors cursor-pointer"
               title="Add emoji"
             >
-              <Smile className="w-3.5 h-3.5" />
+              <Smile className="w-4 h-4" />
             </button>
           </form>
         )}

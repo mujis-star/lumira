@@ -121,116 +121,121 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 w-[72px] xl:w-[244px] bg-[var(--bg-primary)] border-r border-[var(--border-color)] z-30 px-3 py-5 select-none transition-all">
-      {/* Instagram Brand Wordmark / Icon */}
-      <div className="px-3 pt-2 pb-6 mb-2">
-        <div className="hidden xl:block">
-          <InstagramLogo size="md" />
+    <aside className="hidden md:flex flex-col fixed top-3 left-3 bottom-3 w-[72px] xl:w-[244px] bg-[var(--glass-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] rounded-3xl z-30 px-3 py-5 select-none transition-all justify-between">
+      {/* Top Section: Brand & Nav Links */}
+      <div className="flex-col flex flex-1">
+        {/* Lumira Brand Wordmark / Icon */}
+        <div className="px-3 pt-1 pb-5 mb-2 border-b border-[var(--glass-border-subtle)]">
+          <div className="hidden xl:block">
+            <InstagramLogo size="md" />
+          </div>
+          <div className="block xl:hidden text-center">
+            <InstagramLogo size="md" iconOnly={true} />
+          </div>
         </div>
-        <div className="block xl:hidden text-center">
-          <InstagramLogo size="md" iconOnly={true} />
-        </div>
-      </div>
 
-      {/* Main Navigation Links */}
-      <nav className="flex-1 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
+        {/* Main Navigation Links */}
+        <nav className="flex-1 space-y-1.5 py-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
 
-          if (item.isAction) {
-            return (
-              <button
-                key={item.name}
-                onClick={item.onClick}
-                className="w-full flex items-center gap-4 px-3 py-3 rounded-lg text-sm font-normal text-[var(--text-primary)] hover:bg-[var(--sidebar-hover)] transition-all cursor-pointer group"
-                aria-label={item.name}
-              >
-                <div className="relative shrink-0 group-hover:scale-105 transition-transform">
-                  {Icon && <Icon className="w-6 h-6 stroke-[1.75]" />}
-                </div>
-                <span className="hidden xl:inline text-[15px]">{item.name}</span>
-              </button>
-            );
-          }
+            if (item.isAction) {
+              return (
+                <button
+                  key={item.name}
+                  onClick={item.onClick}
+                  className="w-full flex items-center gap-4 px-3 py-3 rounded-2xl text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] border border-transparent hover:border-[var(--glass-border-subtle)] transition-all cursor-pointer group active:scale-98"
+                  aria-label={item.name}
+                >
+                  <div className="relative shrink-0 group-hover:scale-110 transition-transform text-[var(--text-primary)]">
+                    {Icon && <Icon className="w-6 h-6 stroke-[1.75]" />}
+                  </div>
+                  <span className="hidden xl:inline text-[15px]">{item.name}</span>
+                </button>
+              );
+            }
 
-          if (item.isProfile) {
+            if (item.isProfile) {
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href!}
+                  className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-sm transition-all border ${
+                    item.isActive
+                      ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-sm'
+                      : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
+                  } active:scale-98`}
+                  aria-label="Profile"
+                >
+                  <div className="shrink-0">
+                    {mounted && currentUser ? (
+                      <div
+                        className={`rounded-full p-[2px] transition-transform ${
+                          item.isActive ? 'ring-2 ring-[var(--accent-blue)]' : ''
+                        }`}
+                      >
+                        <Avatar src={currentUser.avatarUrl} alt={currentUser.displayName} size="xs" />
+                      </div>
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-neutral-300 dark:bg-neutral-700" />
+                    )}
+                  </div>
+                  <span className="hidden xl:inline text-[15px] truncate">
+                    {mounted && currentUser ? 'Profile' : 'Log In'}
+                  </span>
+                </Link>
+              );
+            }
+
             return (
               <Link
                 key={item.name}
                 href={item.href!}
-                className={`flex items-center gap-4 px-3 py-3 rounded-lg text-sm transition-all hover:bg-[var(--sidebar-hover)] ${
+                className={`flex items-center justify-between px-3 py-3 rounded-2xl text-sm transition-all border ${
                   item.isActive
-                    ? 'font-bold text-[var(--text-primary)]'
-                    : 'font-normal text-[var(--text-primary)]'
-                }`}
-                aria-label="Profile"
+                    ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-sm'
+                    : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
+                } active:scale-98`}
+                aria-label={item.name}
               >
-                <div className="shrink-0">
-                  {mounted && currentUser ? (
-                    <div
-                      className={`rounded-full p-[1px] ${
-                        item.isActive ? 'ring-2 ring-[var(--text-primary)]' : ''
-                      }`}
-                    >
-                      <Avatar src={currentUser.avatarUrl} alt={currentUser.displayName} size="xs" />
-                    </div>
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-neutral-300 dark:bg-neutral-700" />
-                  )}
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="relative shrink-0 group-hover:scale-110 transition-transform">
+                    {Icon && (
+                      <Icon
+                        className={`w-6 h-6 stroke-[1.75] ${
+                          item.isActive ? 'fill-current text-[var(--accent-blue)]' : 'text-[var(--text-primary)]'
+                        }`}
+                      />
+                    )}
+                    {item.badge !== undefined && (
+                      <span className="absolute -top-1 -right-1.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#ff3040] text-white flex items-center justify-center min-w-[16px] h-4 shadow-md">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="hidden xl:inline text-[15px] truncate">{item.name}</span>
                 </div>
-                <span className="hidden xl:inline text-[15px] truncate">
-                  {mounted && currentUser ? 'Profile' : 'Log In'}
-                </span>
               </Link>
             );
-          }
-
-          return (
-            <Link
-              key={item.name}
-              href={item.href!}
-              className={`flex items-center justify-between px-3 py-3 rounded-lg text-sm transition-all hover:bg-[var(--sidebar-hover)] ${
-                item.isActive
-                  ? 'font-bold text-[var(--text-primary)]'
-                  : 'font-normal text-[var(--text-primary)]'
-              }`}
-              aria-label={item.name}
-            >
-              <div className="flex items-center gap-4 min-w-0">
-                <div className="relative shrink-0 group-hover:scale-105 transition-transform">
-                  {Icon && (
-                    <Icon
-                      className={`w-6 h-6 stroke-[1.75] ${item.isActive ? 'fill-current' : ''}`}
-                    />
-                  )}
-                  {item.badge !== undefined && (
-                    <span className="absolute -top-1 -right-1.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#ff3040] text-white flex items-center justify-center min-w-[16px] h-4">
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-                <span className="hidden xl:inline text-[15px] truncate">{item.name}</span>
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
+          })}
+        </nav>
+      </div>
 
       {/* Bottom "More" Menu with Settings & Dark Mode */}
-      <div className="relative pt-2" ref={moreMenuRef}>
+      <div className="relative pt-2 border-t border-[var(--glass-border-subtle)]" ref={moreMenuRef}>
         <AnimatePresence>
           {isMoreMenuOpen && (
             <motion.div
               initial={{ opacity: 0, y: 12, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              className="absolute bottom-full left-0 mb-2 w-64 bg-[var(--modal-bg)] border border-[var(--border-color)] shadow-2xl rounded-2xl p-1.5 z-50 overflow-hidden"
+              transition={{ duration: 0.18 }}
+              className="absolute bottom-full left-0 mb-3 w-64 bg-[var(--glass-modal-bg)] backdrop-blur-3xl border border-[var(--glass-border-highlight)] shadow-[var(--glass-shadow-lg)] rounded-2xl p-2 z-50 overflow-hidden"
             >
               {isSwitchAccountOpen ? (
                 /* Switch Account Persona Sub-menu */
                 <div className="space-y-1">
-                  <div className="px-3 py-2 border-b border-[var(--border-color)] flex items-center justify-between">
+                  <div className="px-3 py-2 border-b border-[var(--glass-border-subtle)] flex items-center justify-between">
                     <span className="text-xs font-bold text-[var(--text-primary)]">
                       Switch Accounts
                     </span>
@@ -241,7 +246,7 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
                       Back
                     </button>
                   </div>
-                  <div className="max-h-56 overflow-y-auto py-1">
+                  <div className="max-h-56 overflow-y-auto py-1 space-y-1">
                     {savedAccounts.map((user) => {
                       const isSelected = user.id === currentUser?.id;
                       return (
@@ -254,8 +259,8 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
                           }}
                           className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
                             isSelected
-                              ? 'bg-neutral-100 dark:bg-neutral-800'
-                              : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
+                              ? 'bg-[var(--accent-blue)]/15 border border-[var(--accent-blue)]/30'
+                              : 'hover:bg-[var(--glass-bg-hover)]'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -281,14 +286,14 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
                       );
                     })}
                   </div>
-                  <div className="p-1 border-t border-[var(--border-color)]">
+                  <div className="p-1 border-t border-[var(--glass-border-subtle)]">
                     <Link
                       href="/auth"
                       onClick={() => {
                         setIsMoreMenuOpen(false);
                         setIsSwitchAccountOpen(false);
                       }}
-                      className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-[#0095f6] hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                      className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-[#0095f6] hover:bg-[var(--glass-bg-hover)] transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Log into an Existing Account</span>
@@ -301,7 +306,7 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
                   <Link
                     href="/settings"
                     onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[var(--text-primary)] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors"
                   >
                     <Settings className="w-4 h-4 stroke-[1.75]" />
                     <span className="text-[14px]">Settings</span>
@@ -309,7 +314,7 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
 
                   <button
                     onClick={toggleTheme}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer text-left"
                   >
                     <div className="flex items-center gap-3">
                       {theme === 'dark' ? (
@@ -325,7 +330,7 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
                   <Link
                     href={currentUser ? `/profile/${currentUser.username}?tab=saved` : '/auth'}
                     onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[var(--text-primary)] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors"
                   >
                     <Bookmark className="w-4 h-4 stroke-[1.75]" />
                     <span className="text-[14px]">Saved</span>
@@ -333,20 +338,20 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
 
                   <button
                     onClick={() => setIsSwitchAccountOpen(true)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer text-left"
                   >
                     <Users className="w-4 h-4 stroke-[1.75]" />
                     <span className="text-[14px]">Switch accounts</span>
                   </button>
 
-                  <div className="my-1 border-t border-[var(--border-color)]" />
+                  <div className="my-1 border-t border-[var(--glass-border-subtle)]" />
 
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-rose-500/15 text-rose-500 transition-colors cursor-pointer text-left"
                   >
                     <LogOut className="w-4 h-4 stroke-[1.75]" />
-                    <span className="text-[14px]">Log out</span>
+                    <span className="text-[14px] font-semibold">Log out</span>
                   </button>
                 </div>
               )}
@@ -356,8 +361,8 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
 
         <button
           onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-          className={`w-full flex items-center gap-4 px-3 py-3 rounded-lg text-sm font-normal text-[var(--text-primary)] hover:bg-[var(--sidebar-hover)] transition-all cursor-pointer ${
-            isMoreMenuOpen ? 'font-bold' : ''
+          className={`w-full flex items-center gap-4 px-3 py-3 rounded-2xl text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] border border-transparent hover:border-[var(--glass-border-subtle)] transition-all cursor-pointer active:scale-98 ${
+            isMoreMenuOpen ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold' : ''
           }`}
           aria-label="More options"
         >

@@ -206,8 +206,8 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
   };
 
   return (
-    <div className="w-full space-y-3 select-none bg-[var(--bg-primary)] px-3 sm:px-4 pt-3 pb-2 border-b border-[var(--border-color)]">
-      {/* 1. Search Bar with Filter Option */}
+    <div className="w-full space-y-3 select-none bg-transparent px-3 sm:px-4 pt-3 pb-2 border-b border-[var(--glass-border-subtle)]">
+      {/* 1. Glass Search Bar */}
       <div className="flex items-center gap-2.5">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
@@ -219,7 +219,7 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
               onSearchChange?.(e.target.value);
             }}
             placeholder="Search"
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800/80 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--border-color)]"
+            className="w-full pl-10 pr-4 py-2 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
           />
         </div>
       </div>
@@ -242,10 +242,10 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
               onClick={() => setIsShareModalOpen(true)}
               className="relative cursor-pointer group flex flex-col items-center"
             >
-              {/* Note Speech Bubble */}
-              <div className="relative mb-2 px-2.5 py-1.5 rounded-2xl bg-white dark:bg-neutral-800 text-[var(--text-primary)] border border-[var(--border-color)] shadow-md text-center max-w-[80px] group-hover:scale-105 transition-transform">
+              {/* Frosted Glass Note Speech Bubble */}
+              <div className="relative mb-2 px-2.5 py-1.5 rounded-2xl bg-[var(--glass-modal-bg)] backdrop-blur-xl text-[var(--text-primary)] border border-[var(--glass-border-highlight)] shadow-md text-center max-w-[80px] group-hover:scale-105 transition-transform">
                 {userNote?.song && (
-                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-blue-500 truncate">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-[var(--accent-blue)] truncate">
                     <span className="animate-pulse">ılı</span>
                     <span className="truncate">{userNote.song.title}</span>
                   </div>
@@ -254,7 +254,7 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
                   {userNote?.text || (userNote?.song ? userNote.song.artist : 'Note...')}
                 </p>
                 {/* Bubble Tail */}
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-neutral-800 border-r border-b border-[var(--border-color)] rotate-45" />
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[var(--glass-modal-bg)] border-r border-b border-[var(--glass-border-highlight)] rotate-45" />
               </div>
 
               {/* Avatar */}
@@ -280,10 +280,10 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
             onClick={() => setActiveNoteForReply(note)}
             className="flex flex-col items-center shrink-0 w-[78px] cursor-pointer group"
           >
-            {/* Speech Bubble */}
-            <div className="relative mb-2 px-2.5 py-1.5 rounded-2xl bg-white dark:bg-neutral-800 text-[var(--text-primary)] border border-[var(--border-color)] shadow-md text-center max-w-[82px] group-hover:scale-105 transition-transform">
+            {/* Frosted Glass Speech Bubble */}
+            <div className="relative mb-2 px-2.5 py-1.5 rounded-2xl bg-[var(--glass-modal-bg)] backdrop-blur-xl text-[var(--text-primary)] border border-[var(--glass-border-highlight)] shadow-md text-center max-w-[82px] group-hover:scale-105 transition-transform">
               {note.song && (
-                <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-blue-500 truncate">
+                <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-[var(--accent-blue)] truncate">
                   <span className="animate-pulse">ılı</span>
                   <span className="truncate">{note.song.title}</span>
                 </div>
@@ -294,7 +294,7 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
                 </p>
               )}
               {/* Bubble Tail */}
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-neutral-800 border-r border-b border-[var(--border-color)] rotate-45" />
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[var(--glass-modal-bg)] border-r border-b border-[var(--glass-border-highlight)] rotate-45" />
             </div>
 
             {/* Avatar */}
@@ -307,10 +307,9 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
         ))}
       </div>
 
-      {/* 3. Fully Moveable Filter Tabs (Primary 6, General, Channels, Requests 1) with Drag, Wheel & Arrow Navigation */}
+      {/* 3. Fully Moveable Filter Tabs with Glass Styling */}
       {showFilters && (
         <div className="relative group/filters pt-1">
-          {/* Scrollable Tabs Track */}
           <div
             ref={filterScrollRef}
             onMouseDown={handleFiltersMouseDown}
@@ -326,8 +325,8 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
               onClick={(e) => handleTabClick('primary', e)}
               className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeFilterTab === 'primary'
-                  ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800/40'
+                  ? 'bg-[var(--glass-bg-hover)] border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]'
               }`}
             >
               <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
@@ -340,8 +339,8 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
               onClick={(e) => handleTabClick('general', e)}
               className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeFilterTab === 'general'
-                  ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800/40'
+                  ? 'bg-[var(--glass-bg-hover)] border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]'
               }`}
             >
               General
@@ -352,8 +351,8 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
               onClick={(e) => handleTabClick('channels', e)}
               className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeFilterTab === 'channels'
-                  ? 'bg-blue-500/20 text-[#0095f6] shadow-xs'
-                  : 'text-[#0095f6] hover:bg-blue-500/10'
+                  ? 'bg-[var(--glass-bg-hover)] border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]'
               }`}
             >
               Channels
@@ -362,15 +361,13 @@ export function NotesTray({ onSearchChange, onFilterTabChange, showFilters = tru
             <button
               type="button"
               onClick={(e) => handleTabClick('requests', e)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeFilterTab === 'requests'
-                  ? 'bg-neutral-200 dark:bg-neutral-800 text-[var(--text-primary)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-neutral-100 dark:hover:bg-neutral-800/40'
+                  ? 'bg-[var(--glass-bg-hover)] border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-[#0095f6]" />
-              <span>Requests</span>
-              <span className="opacity-70 text-[10px]">1</span>
+              Requests
             </button>
           </div>
         </div>

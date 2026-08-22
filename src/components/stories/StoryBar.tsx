@@ -48,7 +48,6 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
       const maxScroll = el.scrollWidth - el.clientWidth;
       if (maxScroll <= 0) return;
 
-      // Translate vertical wheel or horizontal wheel movement to horizontal scroll
       const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       if (delta !== 0) {
         e.preventDefault();
@@ -61,7 +60,6 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
     return () => el.removeEventListener('wheel', onWheel);
   }, [checkScroll]);
 
-  // Click arrow buttons to scroll smoothly
   const handleScroll = (direction: 'left' | 'right') => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -113,25 +111,25 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
   };
 
   return (
-    <div className="relative group/storybar w-full bg-[var(--bg-primary)] py-4 mb-4 border-b border-[var(--border-color)] md:border md:rounded-2xl md:mb-6 select-none overflow-hidden">
-      {/* Left Navigation Arrow Button */}
+    <div className="relative group/storybar w-full bg-[var(--glass-card-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] rounded-3xl py-4 mb-4 select-none overflow-hidden transition-all">
+      {/* Left Glass Navigation Arrow */}
       {canScrollLeft && (
         <button
           type="button"
           onClick={() => handleScroll('left')}
-          className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 dark:bg-neutral-800/90 hover:bg-white dark:hover:bg-neutral-700 text-[var(--text-primary)] shadow-md flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[var(--glass-modal-bg)] backdrop-blur-xl border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-lg flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110 active:scale-95"
           aria-label="Scroll stories left"
         >
           <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
         </button>
       )}
 
-      {/* Right Navigation Arrow Button */}
+      {/* Right Glass Navigation Arrow */}
       {canScrollRight && (
         <button
           type="button"
           onClick={() => handleScroll('right')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 dark:bg-neutral-800/90 hover:bg-white dark:hover:bg-neutral-700 text-[var(--text-primary)] shadow-md flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110"
+          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[var(--glass-modal-bg)] backdrop-blur-xl border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-lg flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110 active:scale-95"
           aria-label="Scroll stories right"
         >
           <ChevronRight className="w-4 h-4 stroke-[2.5]" />
@@ -163,6 +161,7 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
                     handleCreate();
                   }
                 }}
+                className="transition-transform group-hover:scale-105"
               >
                 <Avatar
                   src={currentUser.avatarUrl}
@@ -180,13 +179,13 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
                   e.stopPropagation();
                   handleCreate();
                 }}
-                className="absolute bottom-0 right-0 p-1 bg-[#0095f6] hover:bg-[#1877f2] text-white rounded-full ring-2 ring-[var(--bg-primary)] shadow transition-transform hover:scale-110 cursor-pointer z-10"
+                className="absolute bottom-0 right-0 p-1.5 bg-[#0095f6] hover:bg-[#1877f2] text-white rounded-full ring-2 ring-[var(--bg-primary)] shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
                 aria-label="Add new story"
               >
                 <Plus className="w-3 h-3 stroke-[3]" />
               </button>
             </div>
-            <span className="text-[11px] font-normal text-[var(--text-primary)] truncate max-w-[68px] text-center">
+            <span className="text-[11px] font-medium text-[var(--text-primary)] truncate max-w-[68px] text-center">
               Your story
             </span>
           </div>
@@ -199,14 +198,16 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
             onClick={() => handleStoryClick(story.id)}
             className="flex flex-col items-center gap-1.5 shrink-0 w-[72px] cursor-pointer group"
           >
-            <Avatar
-              src={story.user.avatarUrl}
-              alt={story.user.displayName}
-              size="lg"
-              hasStory={true}
-              isStorySeen={!story.hasUnseen}
-            />
-            <span className="text-[11px] font-normal text-[var(--text-primary)] truncate max-w-[68px] text-center group-hover:opacity-80">
+            <div className="transition-transform group-hover:scale-105">
+              <Avatar
+                src={story.user.avatarUrl}
+                alt={story.user.displayName}
+                size="lg"
+                hasStory={true}
+                isStorySeen={!story.hasUnseen}
+              />
+            </div>
+            <span className="text-[11px] font-medium text-[var(--text-primary)] truncate max-w-[68px] text-center group-hover:text-[var(--accent-blue)] transition-colors">
               {story.user.username}
             </span>
           </div>
