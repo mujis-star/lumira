@@ -5,13 +5,12 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Modal } from '@/components/ui/Modal';
-import { Avatar } from '@/components/ui/Avatar';
 import { sounds, triggerConfetti } from '@/lib/utils';
-import { Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
-  const { loginWithGoogle, loginWithFacebook, loginWithX, switchPersona, allUsers } = useAuth();
+  const { loginWithGoogle, loginWithFacebook, loginWithX } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [activeProvider, setActiveProvider] = useState<'google' | 'facebook' | 'x' | null>(null);
@@ -79,13 +78,6 @@ export default function AuthPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handlePersonaSelect = (userId: string) => {
-    switchPersona(userId);
-    sounds.playSend();
-    triggerConfetti(0.5, 0.5);
-    router.push('/');
   };
 
   return (
@@ -208,35 +200,6 @@ export default function AuthPage() {
             >
               Sign in with custom Gmail, Facebook or 𝕏 handle
             </button>
-          </div>
-        </div>
-
-        {/* 1-Tap Quick Persona Switcher */}
-        <div className="bg-[#121216]/80 backdrop-blur-md border border-white/10 p-4 rounded-3xl space-y-2.5 shadow-xl">
-          <div className="flex items-center justify-between text-xs text-neutral-400 font-semibold px-1">
-            <span>Or 1-Tap Instant Sign-In:</span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {allUsers.slice(0, 4).map((user) => (
-              <button
-                key={user.id}
-                type="button"
-                onClick={() => handlePersonaSelect(user.id)}
-                className="flex items-center gap-2.5 p-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-blue-500/40 transition-all text-left cursor-pointer group"
-              >
-                <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" isVerified={user.isVerified} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate group-hover:text-[#3897f0]">
-                    {user.username}
-                  </p>
-                  <p className="text-[10px] text-neutral-400 truncate">
-                    {user.displayName.split(' ')[0]}
-                  </p>
-                </div>
-              </button>
-            ))}
           </div>
         </div>
 
