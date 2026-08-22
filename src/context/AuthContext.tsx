@@ -329,10 +329,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cleanEmail = email.trim().toLowerCase();
       const existing = users.find((u) => u.email?.toLowerCase() === cleanEmail);
       if (existing) {
-        const updated = {
+        const updated: UserProfile = {
           ...existing,
           displayName: name || existing.displayName,
-          avatarUrl: avatarUrl || existing.avatarUrl,
+          avatarUrl: avatarUrl || (cleanEmail.includes('mujee') ? '/images/avatar-mujeeb.png' : existing.avatarUrl),
+          following: Array.isArray(existing.following) ? existing.following : [],
+          followers: Array.isArray(existing.followers) ? existing.followers : [],
+          followingCount: Array.isArray(existing.following) ? existing.following.length : 0,
+          followersCount: Array.isArray(existing.followers) ? existing.followers.length : 0,
         };
         setCurrentUser(updated);
         rememberAccount(updated.id);
@@ -341,22 +345,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const namePart = cleanEmail.split('@')[0].replace(/[^a-z0-9_.]/g, '') || 'google_user';
+      const defaultAvatar = cleanEmail.includes('mujee')
+        ? '/images/avatar-mujeeb.png'
+        : `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`;
+
       const newGoogleUser: UserProfile = {
         id: generateId('user-google'),
         username: namePart,
-        displayName: name?.trim() || namePart.charAt(0).toUpperCase() + namePart.slice(1),
+        displayName: name?.trim() || (namePart.charAt(0).toUpperCase() + namePart.slice(1)),
         email: cleanEmail,
-        avatarUrl:
-          avatarUrl ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${namePart}`,
+        avatarUrl: avatarUrl || defaultAvatar,
         bio: 'Visual creator on Lumira ✦ Connected via Google Account',
         website: 'https://lumira.app',
-        followersCount: 15,
-        followingCount: 3,
+        followersCount: 0,
+        followingCount: 0,
         postsCount: 0,
         sparksCount: 150,
-        followers: ['user-elena'],
-        following: ['user-admin', 'user-elena', 'user-marcus'],
+        followers: [],
+        following: [],
         createdAt: new Date().toISOString(),
       };
 

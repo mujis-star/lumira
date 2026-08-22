@@ -188,22 +188,33 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     );
   }
 
-  const isSelf = currentUser?.id === profileUser.id;
-  const followingThisUser = isFollowing(profileUser.id);
-  const userPosts = getUserPosts(profileUser.id);
-  const userReels = getUserReels(profileUser.id);
-  const userSavedPosts = isSelf ? getBookmarkedPosts(profileUser.id) : [];
-  const userTaggedPosts = getTaggedPosts(profileUser.username);
+  const isSelf = !!(
+    currentUser &&
+    profileUser &&
+    (currentUser.id === profileUser.id ||
+      currentUser.username.toLowerCase() === profileUser.username.toLowerCase())
+  );
+  const activeUser = isSelf && currentUser ? currentUser : profileUser;
+  const followingThisUser = profileUser ? isFollowing(profileUser.id) : false;
+  const userPosts = profileUser ? getUserPosts(profileUser.id) : [];
+  const userReels = profileUser ? getUserReels(profileUser.id) : [];
+  const userSavedPosts = isSelf && profileUser ? getBookmarkedPosts(profileUser.id) : [];
+  const userTaggedPosts = profileUser ? getTaggedPosts(profileUser.username) : [];
 
-  const userStory = stories.find((s) => s.userId === profileUser.id);
+  const livePostsCount = isSelf ? userPosts.length : (activeUser?.postsCount ?? userPosts.length);
+  const liveFollowersCount = activeUser?.followers ? activeUser.followers.length : (activeUser?.followersCount ?? 0);
+  const liveFollowingCount = activeUser?.following ? activeUser.following.length : (activeUser?.followingCount ?? 0);
+
+  const userStory = profileUser ? stories.find((s) => s.userId === profileUser.id) : undefined;
   const hasStory = !!userStory && userStory.items.length > 0;
 
   const handleOpenEdit = () => {
-    setEditDisplayName(profileUser.displayName);
-    setEditUsername(profileUser.username);
-    setEditBio(profileUser.bio || '');
-    setEditWebsite(profileUser.website || '');
-    setEditAvatarUrl(profileUser.avatarUrl);
+    if (!activeUser) return;
+    setEditDisplayName(activeUser.displayName);
+    setEditUsername(activeUser.username);
+    setEditBio(activeUser.bio || '');
+    setEditWebsite(activeUser.website || '');
+    setEditAvatarUrl(activeUser.avatarUrl);
     setIsEditProfileOpen(true);
   };
 
@@ -245,8 +256,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
 
     const updated = [...highlights, newHl];
     setHighlights(updated);
-    if (typeof window !== 'undefined' && profileUser) {
-      localStorage.setItem(`lumira-v2-hl-${profileUser.id}`, JSON.stringify(updated));
+    if (typeof window !== 'undefined' && activeUser) {
+      localStorage.setItem(`lumira-v2-hl-${activeUser.id}`, JSON.stringify(updated));
     }
 
     setIsNewHighlightOpen(false);
@@ -287,8 +298,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     );
 
     setHighlights(updated);
-    if (typeof window !== 'undefined' && profileUser) {
-      localStorage.setItem(`lumira-v2-hl-${profileUser.id}`, JSON.stringify(updated));
+    if (typeof window !== 'undefined' && activeUser) {
+      localStorage.setItem(`lumira-v2-hl-${activeUser.id}`, JSON.stringify(updated));
     }
 
     setIsEditHighlightOpen(false);
@@ -299,41 +310,37 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   const handleDeleteHighlight = (id: string) => {
     const updated = highlights.filter((h) => h.id !== id);
     setHighlights(updated);
-    if (typeof window !== 'undefined' && profileUser) {
-      localStorage.setItem(`lumira-v2-hl-${profileUser.id}`, JSON.stringify(updated));
+    if (typeof window !== 'undefined' && activeUser) {
+      localStorage.setItem(`lumira-v2-hl-${activeUser.id}`, JSON.stringify(updated));
     }
-
     setIsEditHighlightOpen(false);
     setEditingHighlight(null);
-    sounds.playSend();
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    const newCleanUsername = editUsername.trim().toLowerCase().replace(/[^a-z0-9_.]/g, '') || profileUser.username;
+    if (!editUsername.trim() || !editDisplayName.trim()) return;
 
     updateProfile({
-      displayName: editDisplayName.trim() || profileUser.displayName,
-      username: newCleanUsername,
-      bio: editBio,
-      website: editWebsite,
-      avatarUrl: editAvatarUrl || profileUser.avatarUrl,
+      username: editUsername.trim().toLowerCase().replace(/[^a-z0-9_.]/g, ''),
+      displayName: editDisplayName.trim(),
+      bio: editBio.trim(),
+      website: editWebsite.trim(),
+      avatarUrl: editAvatarUrl || activeUser.avatarUrl,
     });
 
     setIsEditProfileOpen(false);
-
-    if (newCleanUsername !== profileUser.username) {
-      router.push(`/profile/${newCleanUsername}`);
-    }
+    sounds.playSend();
   };
 
   const handleStartChat = () => {
-    startDirectMessage(profileUser.id);
+    if (!activeUser) return;
+    startDirectMessage(activeUser.id);
     router.push('/direct');
   };
 
   return (
-    <AppShell title={profileUser.username}>
+    <AppShell title={activeUser.username}>
       <div className="max-w-[935px] mx-auto py-4 sm:py-8 px-4 sm:px-6 space-y-6 select-none">
         {/* Frosted Glass Profile Header Card */}
         <header className="p-6 sm:p-8 rounded-3xl bg-[var(--glass-card-bg)] backdrop-blur-3xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] flex flex-col md:flex-row items-center md:items-start gap-8 transition-all">
@@ -341,7 +348,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           <div className="relative group shrink-0">
             <div
               onClick={() => {
-                if (hasStory) {
+                if (hasStory && userStory) {
                   openStoryViewer(userStory.id);
                 } else if (isSelf) {
                   openStoryCreator();
@@ -350,12 +357,12 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               className="cursor-pointer transition-transform group-hover:scale-105"
             >
               <Avatar
-                src={profileUser.avatarUrl}
-                alt={profileUser.displayName}
+                src={activeUser.avatarUrl}
+                alt={activeUser.displayName}
                 size="2xl"
                 hasStory={hasStory}
                 isStorySeen={userStory ? !userStory.hasUnseen : false}
-                isVerified={profileUser.isVerified}
+                isVerified={activeUser.isVerified}
               />
             </div>
 
@@ -380,7 +387,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             {/* Row 1: Username & Actions */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
               <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
-                {profileUser.username}
+                {activeUser.username}
               </h1>
 
               {isSelf ? (
@@ -409,7 +416,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               ) : (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => toggleFollow(profileUser.id)}
+                    onClick={() => toggleFollow(activeUser.id)}
                     className={`px-5 py-2 rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer ${
                       followingThisUser
                         ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] border border-[var(--glass-border)]'
@@ -431,7 +438,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             {/* Row 2: Stats (Posts, Followers, Following) */}
             <div className="flex items-center justify-center md:justify-start gap-8 text-sm">
               <div>
-                <span className="font-bold text-[var(--text-primary)]">{profileUser.postsCount}</span>{' '}
+                <span className="font-bold text-[var(--text-primary)]">{livePostsCount}</span>{' '}
                 <span className="text-[var(--text-secondary)] text-xs">posts</span>
               </div>
 
@@ -439,7 +446,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                 onClick={() => setIsFollowersModalOpen(true)}
                 className="cursor-pointer hover:opacity-80 transition-opacity"
               >
-                <span className="font-bold text-[var(--text-primary)]">{formatNumber(profileUser.followersCount)}</span>{' '}
+                <span className="font-bold text-[var(--text-primary)]">{formatNumber(liveFollowersCount)}</span>{' '}
                 <span className="text-[var(--text-secondary)] text-xs">followers</span>
               </button>
 
@@ -447,24 +454,24 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                 onClick={() => setIsFollowingModalOpen(true)}
                 className="cursor-pointer hover:opacity-80 transition-opacity"
               >
-                <span className="font-bold text-[var(--text-primary)]">{formatNumber(profileUser.followingCount)}</span>{' '}
+                <span className="font-bold text-[var(--text-primary)]">{formatNumber(liveFollowingCount)}</span>{' '}
                 <span className="text-[var(--text-secondary)] text-xs">following</span>
               </button>
             </div>
 
             {/* Row 3: Bio & Website */}
             <div className="text-xs text-[var(--text-primary)] space-y-1">
-              <p className="font-bold">{profileUser.displayName}</p>
-              <p className="whitespace-pre-line leading-relaxed">{profileUser.bio}</p>
-              {profileUser.website && (
+              <p className="font-bold">{activeUser.displayName}</p>
+              <p className="whitespace-pre-line leading-relaxed">{activeUser.bio}</p>
+              {activeUser.website && (
                 <a
-                  href={profileUser.website}
+                  href={activeUser.website}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 font-semibold text-[var(--accent-blue)] hover:underline"
                 >
                   <LinkIcon className="w-3 h-3" />
-                  <span>{profileUser.website.replace(/^https?:\/\//, '')}</span>
+                  <span>{activeUser.website.replace(/^https?:\/\//, '')}</span>
                 </a>
               )}
             </div>

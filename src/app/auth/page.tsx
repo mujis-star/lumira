@@ -54,7 +54,7 @@ const DEFAULT_GOOGLE_ACCOUNTS: GoogleAccount[] = [
   {
     name: 'Mujeeb Rahman',
     email: 'mujee00012@gmail.com',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    avatar: '/images/avatar-mujeeb.png',
   },
 ];
 
