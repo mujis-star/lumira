@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Public avatars and user media uploads
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Post media (images and video clips)
+    match /posts/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId
+                   && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    // Story media (ephemeral 24h uploads)
+    match /stories/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId
+                   && request.resource.size < 15 * 1024 * 1024;
+    }
+
+    // Direct message attachments
+    match /messages/{convId}/{allPaths=**} {
+      allow read, write: if isAuthenticated()
+                         && request.resource.size < 20 * 1024 * 1024;
+    }
+  }
+}
