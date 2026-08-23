@@ -5,6 +5,8 @@ import { Conversation, Message, UserProfile } from '@/lib/types';
 import { SEED_CONVERSATIONS, SEED_MESSAGES } from '@/lib/seedData';
 import { useAuth } from './AuthContext';
 import { sounds, triggerConfetti } from '@/lib/utils';
+import { db } from '@/lib/firebase';
+import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface SendMessageInput {
   conversationId?: string;
@@ -37,10 +39,27 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 const CONVERSATIONS_STORAGE_KEY = 'lumira-v2-conversations';
 const MESSAGES_STORAGE_KEY = 'lumira-v2-messages';
 
-// Generate a deterministic, canonical conversation ID for any 2 users
-export function getCanonicalDirectConvId(userId1: string, userId2: string): string {
-  const u1 = (userId1 || '').toLowerCase().trim();
-  const u2 = (userId2 || '').toLowerCase().trim();
+// Helper to resolve any user ID or username to canonical lowercase username
+export function resolveCanonicalUsername(idOrUsername: string, allUsersList?: UserProfile[]): string {
+  const clean = (idOrUsername || '').toLowerCase().trim();
+  if (!clean) return '';
+  const match = allUsersList?.find(
+    (u) => u.id.toLowerCase() === clean || u.username.toLowerCase() === clean || u.email?.toLowerCase() === clean
+  );
+  if (match) return match.username.toLowerCase().trim();
+
+  if (clean.startsWith('user-')) return clean.replace(/^user-/, '');
+  return clean;
+}
+
+// Generate a deterministic, canonical conversation ID for any 2 users based on their usernames
+export function getCanonicalDirectConvId(
+  userId1: string,
+  userId2: string,
+  allUsersList?: UserProfile[]
+): string {
+  const u1 = resolveCanonicalUsername(userId1, allUsersList);
+  const u2 = resolveCanonicalUsername(userId2, allUsersList);
   const sorted = [u1, u2].sort();
   return `dm_${sorted[0]}_${sorted[1]}`;
 }
@@ -59,8 +78,11 @@ export function mergeAndDeduplicateConversations(
   const currentUsername = currentUserProfile?.username?.toLowerCase().trim();
 
   // Helper to find full user profile
-  const findProfile = (id: string): UserProfile | undefined => {
-    return allUsersList?.find((u) => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+  const findProfile = (idOrUsername: string): UserProfile | undefined => {
+    const clean = (idOrUsername || '').toLowerCase().trim();
+    return allUsersList?.find(
+      (u) => u.id.toLowerCase() === clean || u.username.toLowerCase() === clean || u.email?.toLowerCase() === clean
+    );
   };
 
   // 1. Process all raw conversations
@@ -112,6 +134,7 @@ export function mergeAndDeduplicateConversations(
       if (currentUserId) {
         const isParticipant =
           pIds.includes(currentUserId) ||
+          (currentUsername && pIds.map((p) => p.toLowerCase()).includes(currentUsername)) ||
           (conv.participants || []).some(
             (p) =>
               p.id === currentUserId ||
@@ -126,12 +149,23 @@ export function mergeAndDeduplicateConversations(
         }
       }
 
-      let canonicalKey = conv.id;
-      if (pIds.length >= 2) {
-        canonicalKey = getCanonicalDirectConvId(pIds[0], pIds[1]);
-      } else if (pIds.length === 1 && currentUserId) {
-        canonicalKey = getCanonicalDirectConvId(currentUserId, pIds[0]);
+      // Find other participant
+      let otherParticipant = (conv.participants || []).find((p) => {
+        const isMe = p.id === currentUserId || (currentUsername && p.username?.toLowerCase() === currentUsername);
+        return !isMe;
+      });
+
+      if (!otherParticipant) {
+        const otherId = pIds.find((id) => id !== currentUserId && id.toLowerCase() !== currentUsername) || pIds[0];
+        otherParticipant = findProfile(otherId);
       }
+
+      const myName = currentUsername || resolveCanonicalUsername(currentUserId || pIds[0], allUsersList);
+      const otherName = otherParticipant
+        ? otherParticipant.username.toLowerCase().trim()
+        : resolveCanonicalUsername(pIds.find((id) => id !== currentUserId) || pIds[0], allUsersList);
+
+      const canonicalKey = getCanonicalDirectConvId(myName, otherName, allUsersList);
 
       // Collect all messages associated with both this conversation ID and canonicalKey
       const oldMsgs = rawMsgs[conv.id] || [];
@@ -157,16 +191,21 @@ export function mergeAndDeduplicateConversations(
       const latestMsg = sortedMsgs[sortedMsgs.length - 1] || conv.lastMessage;
       const latestTime = latestMsg?.createdAt || conv.updatedAt || new Date().toISOString();
 
-      // Resolve participants cleanly
+      // Resolve participants cleanly: [me, other]
+      const meProfile = currentUserProfile || findProfile(myName) || (conv.participants || [])[0];
       const participantProfiles: UserProfile[] = [];
-      const canonicalParticipantIds = pIds.length >= 2 ? [pIds[0], pIds[1]] : [currentUserId || pIds[0], pIds[0]];
-
-      for (const id of canonicalParticipantIds) {
-        const found = findProfile(id) || (conv.participants || []).find((p) => p.id === id);
-        if (found && !participantProfiles.some((p) => p.id === found.id)) {
-          participantProfiles.push(found);
-        }
+      if (meProfile) participantProfiles.push(meProfile);
+      if (otherParticipant && otherParticipant.id !== meProfile?.id) {
+        participantProfiles.push(otherParticipant);
+      } else if (conv.participants && conv.participants.length > 1) {
+        const alt = conv.participants.find((p) => p.id !== meProfile?.id);
+        if (alt) participantProfiles.push(alt);
       }
+
+      const canonicalParticipantIds = [
+        meProfile?.id || currentUserId || myName,
+        otherParticipant?.id || otherName,
+      ];
 
       const existingConv = unifiedConvsMap.get(canonicalKey);
       if (!existingConv) {
@@ -324,10 +363,89 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         .catch(() => {});
     }, 2000);
 
+    // 3. Real-Time Firestore Database Snapshot Listener
+    let unsubFirestoreMsgs: (() => void) | undefined;
+    let unsubFirestoreConvs: (() => void) | undefined;
+
+    if (db) {
+      try {
+        const msgsRef = collection(db, 'lumira_messages');
+        unsubFirestoreMsgs = onSnapshot(
+          msgsRef,
+          (snapshot) => {
+            if (!snapshot.empty) {
+              const msgsByConv: Record<string, Message[]> = {};
+              snapshot.forEach((docSnap) => {
+                const data = docSnap.data() as Message;
+                if (data && data.conversationId) {
+                  if (!msgsByConv[data.conversationId]) {
+                    msgsByConv[data.conversationId] = [];
+                  }
+                  msgsByConv[data.conversationId].push(data);
+                }
+              });
+
+              const currentMsgs = messagesRef.current;
+              const currentConvs = conversationsRef.current;
+              const merged = mergeAndDeduplicateConversations(
+                currentConvs,
+                { ...currentMsgs, ...msgsByConv },
+                currentUser,
+                allUsers
+              );
+
+              setConversations(merged.conversations);
+              setMessages(merged.messages);
+              messagesRef.current = merged.messages;
+              conversationsRef.current = merged.conversations;
+            }
+          },
+          (err) => {
+            console.warn('Firestore messages subscription notice:', err.message);
+          }
+        );
+
+        const convsRef = collection(db, 'lumira_conversations');
+        unsubFirestoreConvs = onSnapshot(
+          convsRef,
+          (snapshot) => {
+            if (!snapshot.empty) {
+              const firestoreConvs: Conversation[] = [];
+              snapshot.forEach((docSnap) => {
+                const data = docSnap.data() as Conversation;
+                if (data && data.id) firestoreConvs.push(data);
+              });
+
+              const currentMsgs = messagesRef.current;
+              const currentConvs = conversationsRef.current;
+              const merged = mergeAndDeduplicateConversations(
+                [...firestoreConvs, ...currentConvs],
+                currentMsgs,
+                currentUser,
+                allUsers
+              );
+
+              setConversations(merged.conversations);
+              setMessages(merged.messages);
+              messagesRef.current = merged.messages;
+              conversationsRef.current = merged.conversations;
+            }
+          },
+          (err) => {
+            console.warn('Firestore conversations subscription notice:', err.message);
+          }
+        );
+      } catch (err) {
+        console.warn('Firestore listener initialization notice:', err);
+      }
+    }
+
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(syncInterval);
+      if (unsubFirestoreMsgs) unsubFirestoreMsgs();
+      if (unsubFirestoreConvs) unsubFirestoreConvs();
     };
   }, [currentUser, allUsers, activeConversationId]);
 
@@ -371,7 +489,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const startDirectMessage = useCallback((targetUserId: string): string => {
     if (!currentUser) return '';
 
-    const canonicalConvId = getCanonicalDirectConvId(currentUser.id, targetUserId);
+    const canonicalConvId = getCanonicalDirectConvId(currentUser.id, targetUserId, allUsers);
 
     // Check if canonical conversation already exists in current list
     const existing = conversationsRef.current.find(
@@ -553,7 +671,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     let finalConvId = convId;
     if (currentConv && !currentConv.isGroup && targetReceiverId) {
-      finalConvId = getCanonicalDirectConvId(currentUser.id, targetReceiverId);
+      finalConvId = getCanonicalDirectConvId(currentUser.id, targetReceiverId, allUsers);
     }
 
     const newMessage: Message = {
@@ -611,7 +729,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     sounds.playSend();
 
-    // 4. Broadcast to server for real-time multi-window sync
+    // 4. Real-time Firestore Database Persistence
+    if (db) {
+      setDoc(doc(db, 'lumira_messages', newMessage.id), newMessage).catch((err) => {
+        console.warn('Firestore setDoc message notice:', err.message);
+      });
+      setDoc(doc(db, 'lumira_conversations', finalConvId), matchedConv).catch((err) => {
+        console.warn('Firestore setDoc conversation notice:', err.message);
+      });
+    }
+
+    // 5. Broadcast to server for real-time multi-window sync
     fetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -632,6 +760,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const currentMsgs = messagesRef.current;
     const convMsgs = currentMsgs[activeConversationId] || [];
+    let updatedTargetMsg: Message | undefined;
+
     const updatedConvMsgs = convMsgs.map((m) => {
       if (m.id === messageId) {
         const currentReactions = m.reactions || [];
@@ -650,7 +780,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           updatedReactions = [...currentReactions, { userId: currentUser.id, emoji }];
         }
 
-        return { ...m, reactions: updatedReactions };
+        const updated = { ...m, reactions: updatedReactions };
+        updatedTargetMsg = updated;
+        return updated;
       }
       return m;
     });
@@ -662,6 +794,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     persistMessages(updated);
     sounds.playPop();
+
+    if (db && updatedTargetMsg) {
+      setDoc(doc(db, 'lumira_messages', messageId), updatedTargetMsg, { merge: true }).catch(() => {});
+    }
   }, [currentUser, activeConversationId, persistMessages]);
 
   const markAsRead = useCallback((convId: string) => {

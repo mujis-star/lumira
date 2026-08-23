@@ -49,8 +49,26 @@ Object.entries(SEED_MESSAGES).forEach(([convId, msgs]) => {
   messagesMap.set(convId, [...msgs]);
 });
 
+function resolveCanonicalUsername(idOrUsername: string): string {
+  const clean = (idOrUsername || '').toLowerCase().trim();
+  if (!clean) return '';
+  const match =
+    usersMap.get(clean) ||
+    Array.from(usersMap.values()).find(
+      (u) =>
+        u.id.toLowerCase() === clean ||
+        u.username.toLowerCase() === clean ||
+        u.email?.toLowerCase() === clean
+    );
+  if (match) return match.username.toLowerCase().trim();
+  if (clean.startsWith('user-')) return clean.replace(/^user-/, '');
+  return clean;
+}
+
 function getCanonicalDirectConvId(userId1: string, userId2: string): string {
-  const sorted = [userId1.trim(), userId2.trim()].sort();
+  const u1 = resolveCanonicalUsername(userId1);
+  const u2 = resolveCanonicalUsername(userId2);
+  const sorted = [u1, u2].sort();
   return `dm_${sorted[0]}_${sorted[1]}`;
 }
 

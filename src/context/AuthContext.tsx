@@ -3,15 +3,15 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { UserProfile } from '@/lib/types';
 import { SEED_USERS } from '@/lib/seedData';
-import { isFirebaseConfigured, auth as firebaseAuth } from '@/lib/firebase';
+import { isFirebaseConfigured, auth as firebaseAuth, db, googleProvider } from '@/lib/firebase';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
+import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -197,6 +197,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Firestore real-time users listener
+    let unsubFirestoreUsers: (() => void) | undefined;
+    if (db) {
+      try {
+        const usersRef = collection(db, 'lumira_users');
+        unsubFirestoreUsers = onSnapshot(
+          usersRef,
+          (snapshot) => {
+            if (!snapshot.empty) {
+              const firestoreUsers: UserProfile[] = [];
+              snapshot.forEach((docSnap) => {
+                const u = docSnap.data() as UserProfile;
+                if (u && u.username) firestoreUsers.push(u);
+              });
+              if (firestoreUsers.length > 0) {
+                setUsers((prev) => {
+                  const merged = sanitizeAndDeduplicateUsers([...prev, ...firestoreUsers]);
+                  try {
+                    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+                  } catch {}
+                  return merged;
+                });
+              }
+            }
+          },
+          (err) => {
+            console.warn('Firestore users subscription notice:', err.message);
+          }
+        );
+      } catch (err) {
+        console.warn('Firestore users listener initialization notice:', err);
+      }
+    }
+
     const syncUsersInterval = setInterval(() => {
       fetch('/api/sync')
         .then((res) => res.json())
@@ -230,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(syncUsersInterval);
+      if (unsubFirestoreUsers) unsubFirestoreUsers();
     };
   }, []);
 
@@ -253,6 +288,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (existing) {
             setCurrentUser(existing);
             rememberAccount(existing.id);
+            if (db) {
+              setDoc(doc(db, 'lumira_users', existing.id), existing, { merge: true }).catch(() => {});
+            }
           } else {
             const namePart = (fbUser.email?.split('@')[0] || 'creator').replace(/[^a-z0-9_.]/g, '');
             const newUser: UserProfile = {
@@ -276,6 +314,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (typeof window !== 'undefined') {
               localStorage.setItem(CURRENT_USER_ID_KEY, newUser.id);
             }
+            if (db) {
+              setDoc(doc(db, 'lumira_users', newUser.id), newUser, { merge: true }).catch(() => {});
+            }
           }
         }
       });
@@ -289,6 +330,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
       if (current) {
         localStorage.setItem(CURRENT_USER_ID_KEY, current.id);
+        if (db) {
+          setDoc(doc(db, 'lumira_users', current.id), current, { merge: true }).catch(() => {});
+        }
         fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -502,9 +546,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Otherwise try Firebase Popup if active
     if (isFirebaseActive && firebaseAuth) {
       try {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        const cred = await signInWithPopup(firebaseAuth, provider);
+        const cred = await signInWithPopup(firebaseAuth, googleProvider);
         const fbUser = cred.user;
         if (fbUser && fbUser.email) {
           return loginWithGoogle(fbUser.email, fbUser.displayName || undefined, fbUser.photoURL || undefined);
