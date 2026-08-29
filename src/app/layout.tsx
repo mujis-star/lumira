@@ -6,6 +6,7 @@ import { PostProvider } from '@/context/PostContext';
 import { StoryProvider } from '@/context/StoryContext';
 import { ChatProvider } from '@/context/ChatContext';
 import { NotificationProvider } from '@/context/NotificationContext';
+import { InstantProvider } from '@/context/InstantContext';
 
 export const metadata: Metadata = {
   title: 'Lumira',
@@ -24,9 +25,11 @@ export default function RootLayout({
           <AuthProvider>
             <PostProvider>
               <StoryProvider>
-                <ChatProvider>
-                  <NotificationProvider>{children}</NotificationProvider>
-                </ChatProvider>
+                <InstantProvider>
+                  <ChatProvider>
+                    <NotificationProvider>{children}</NotificationProvider>
+                  </ChatProvider>
+                </InstantProvider>
               </StoryProvider>
             </PostProvider>
           </AuthProvider>

@@ -208,6 +208,25 @@ export const FILTER_PRESETS: FilterPreset[] = [
   },
 ];
 
+export function formatRemainingTime(expiresAt: string | Date | number): string {
+  const expiry = typeof expiresAt === 'string' ? new Date(expiresAt) : new Date(expiresAt);
+  const now = new Date();
+  const diffInMs = expiry.getTime() - now.getTime();
+
+  if (diffInMs <= 0) return 'Expired';
+
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMinutes / 60);
+
+  if (diffInHours >= 1) {
+    return `${diffInHours}h`;
+  }
+  if (diffInMinutes > 0) {
+    return `${diffInMinutes}m`;
+  }
+  return '<1m';
+}
+
 export function extractTagsAndMentions(text: string): { tags: string[]; mentions: string[] } {
   const tagMatches = text.match(/#([\w\u0590-\u05ff]+)/g) || [];
   const mentionMatches = text.match(/@([\w.]+)/g) || [];
@@ -216,4 +235,160 @@ export function extractTagsAndMentions(text: string): { tags: string[]; mentions
     tags: tagMatches.map((t) => t.slice(1).toLowerCase()),
     mentions: mentionMatches.map((m) => m.slice(1).toLowerCase()),
   };
+}
+
+export const DEFAULT_ADJUSTMENTS: import('./types').InstantAdjustments = {
+  brightness: 100,
+  contrast: 100,
+  exposure: 0,
+  saturation: 100,
+  temperature: 0,
+  tint: 0,
+  highlights: 0,
+  shadows: 0,
+  sharpness: 0,
+  clarity: 0,
+  fade: 0,
+  vignette: 0,
+  grain: 0,
+  blur: 0,
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  rotate: 0,
+  flipH: false,
+  flipV: false,
+  straighten: 0,
+  aspectRatio: 'free',
+};
+
+export const INSTANT_FILTERS: (FilterPreset & { description?: string })[] = [
+  {
+    id: 'normal',
+    name: 'Original',
+    cssFilter: 'none',
+    thumbnailClass: 'filter-none',
+    description: 'Natural look',
+  },
+  {
+    id: 'aurora',
+    name: 'Aurora Glow',
+    cssFilter: 'contrast(1.15) saturate(1.35) hue-rotate(-10deg) brightness(1.05)',
+    thumbnailClass: 'contrast-115 saturate-135',
+    description: 'Vibrant & ethereal',
+  },
+  {
+    id: 'cyber',
+    name: 'Cyberpunk',
+    cssFilter: 'contrast(1.25) saturate(1.4) hue-rotate(18deg) brightness(0.96)',
+    thumbnailClass: 'contrast-125 saturate-140',
+    description: 'High-tech neon vibe',
+  },
+  {
+    id: 'velvet',
+    name: 'Velvet Film',
+    cssFilter: 'sepia(0.25) contrast(1.08) brightness(1.04) saturate(0.92)',
+    thumbnailClass: 'sepia-20 contrast-105',
+    description: 'Warm analog grain',
+  },
+  {
+    id: 'golden',
+    name: 'Sunset Gold',
+    cssFilter: 'sepia(0.35) saturate(1.45) contrast(1.1) brightness(1.08)',
+    thumbnailClass: 'sepia-35 saturate-140',
+    description: 'Golden hour warmth',
+  },
+  {
+    id: 'noir',
+    name: 'Noir Luxe',
+    cssFilter: 'grayscale(1) contrast(1.38) brightness(0.95)',
+    thumbnailClass: 'grayscale contrast-135',
+    description: 'Dramatic black & white',
+  },
+  {
+    id: 'emerald',
+    name: 'Emerald City',
+    cssFilter: 'hue-rotate(50deg) saturate(1.2) contrast(1.1) brightness(1.02)',
+    thumbnailClass: 'saturate-120 contrast-110',
+    description: 'Lush green tones',
+  },
+  {
+    id: 'tokyo',
+    name: 'Tokyo Night',
+    cssFilter: 'hue-rotate(-25deg) contrast(1.25) saturate(1.3) brightness(0.92)',
+    thumbnailClass: 'contrast-125 saturate-130',
+    description: 'Moody deep indigo',
+  },
+  {
+    id: 'pastel',
+    name: 'Pastel Rose',
+    cssFilter: 'sepia(0.15) hue-rotate(320deg) saturate(1.15) brightness(1.08) contrast(1.02)',
+    thumbnailClass: 'saturate-115 brightness-110',
+    description: 'Soft dreamy blush',
+  },
+  {
+    id: 'crisp',
+    name: 'Prism Crisp',
+    cssFilter: 'contrast(1.3) saturate(1.25) brightness(1.1)',
+    thumbnailClass: 'contrast-130 brightness-110',
+    description: 'Sharp high definition',
+  },
+];
+
+export function generateInstantCssFilter(
+  adjustments?: Partial<import('./types').InstantAdjustments>,
+  filterId?: string,
+  filterIntensity = 100
+): string {
+  const adj = { ...DEFAULT_ADJUSTMENTS, ...adjustments };
+  const parts: string[] = [];
+
+  // 1. Base adjustments
+  const brightnessVal = ((adj.brightness / 100) * (1 + adj.exposure / 100)).toFixed(2);
+  if (brightnessVal !== '1.00') parts.push(`brightness(${brightnessVal})`);
+
+  const contrastVal = (adj.contrast / 100).toFixed(2);
+  if (contrastVal !== '1.00') parts.push(`contrast(${contrastVal})`);
+
+  const saturateVal = (adj.saturation / 100).toFixed(2);
+  if (saturateVal !== '1.00') parts.push(`saturate(${saturateVal})`);
+
+  // Temperature / Tint mapping to sepia + hue-rotate
+  if (adj.temperature !== 0) {
+    if (adj.temperature > 0) {
+      parts.push(`sepia(${(adj.temperature / 250).toFixed(2)})`);
+    } else {
+      parts.push(`hue-rotate(${adj.temperature * 0.4}deg)`);
+    }
+  }
+
+  if (adj.tint !== 0) {
+    parts.push(`hue-rotate(${adj.tint * 0.5}deg)`);
+  }
+
+  if (adj.blur > 0) {
+    parts.push(`blur(${adj.blur}px)`);
+  }
+
+  // 2. Preset Filter (with intensity blending if < 100)
+  if (filterId && filterId !== 'normal') {
+    const preset = INSTANT_FILTERS.find((f) => f.id === filterId);
+    if (preset && preset.cssFilter !== 'none') {
+      if (filterIntensity >= 95) {
+        parts.push(preset.cssFilter);
+      } else if (filterIntensity > 0) {
+        // Approximate intensity modulation
+        const intensityRatio = filterIntensity / 100;
+        if (filterId === 'noir') {
+          parts.push(`grayscale(${intensityRatio.toFixed(2)}) contrast(${(1 + 0.38 * intensityRatio).toFixed(2)})`);
+        } else if (filterId === 'velvet' || filterId === 'golden') {
+          parts.push(`sepia(${(0.35 * intensityRatio).toFixed(2)}) saturate(${(1 + 0.4 * intensityRatio).toFixed(2)})`);
+        } else {
+          parts.push(preset.cssFilter);
+        }
+      }
+    }
+  }
+
+  return parts.length > 0 ? parts.join(' ') : 'none';
 }

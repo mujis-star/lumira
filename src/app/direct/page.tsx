@@ -28,6 +28,12 @@ import {
   Plus,
 } from 'lucide-react';
 import { EmojiPickerModal } from '@/components/ui/EmojiPicker';
+import { useInstants } from '@/context/InstantContext';
+import { InstantsTray } from '@/components/instants/InstantsTray';
+import { InstantCard } from '@/components/instants/InstantCard';
+import { CreateInstantModal } from '@/components/instants/CreateInstantModal';
+import { InstantViewerModal } from '@/components/instants/InstantViewerModal';
+import { Zap } from 'lucide-react';
 
 export default function DirectMessagePage() {
   const {
@@ -45,9 +51,17 @@ export default function DirectMessagePage() {
   } = useChat();
 
   const { currentUser, allUsers } = useAuth();
+  const {
+    todayInstants,
+    openInstantViewer,
+    isCreatorOpen,
+    openInstantCreator,
+    closeInstantCreator,
+  } = useInstants();
 
   const [messageText, setMessageText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [messagesSectionTab, setMessagesSectionTab] = useState<'chats' | 'instants' | 'requests'>('chats');
   const [currentFilterTab, setCurrentFilterTab] = useState<'primary' | 'general' | 'channels' | 'requests'>('primary');
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [chatCreationTab, setChatCreationTab] = useState<'direct' | 'group'>('direct');
@@ -181,37 +195,138 @@ export default function DirectMessagePage() {
               </div>
             </div>
 
-            {/* Instagram Notes & Search Tray */}
-            <NotesTray
-              onSearchChange={(q) => setSearchQuery(q)}
-              onFilterTabChange={(tab) => setCurrentFilterTab(tab)}
-            />
+            {/* Messages Main Section Switcher: Chats | Instants | Requests */}
+            <div className="px-3 pt-2 pb-1 border-b border-[var(--glass-border-subtle)]">
+              <div className="flex items-center p-1 bg-[var(--glass-input-bg)] rounded-2xl border border-[var(--glass-border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setMessagesSectionTab('chats')}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    messagesSectionTab === 'chats'
+                      ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Chats
+                </button>
 
-            {/* Subheader */}
-            <div className="px-4 pt-3 pb-2 flex items-center justify-between text-xs">
-              <span className="font-bold text-[var(--text-primary)]">
-                {currentFilterTab === 'channels'
-                  ? 'Channels & Groups'
-                  : currentFilterTab === 'requests'
-                  ? 'Message Requests'
-                  : currentFilterTab === 'general'
-                  ? 'General Messages'
-                  : 'Messages & Groups'}
-              </span>
-              <button
-                onClick={() => {
-                  setIsNewChatOpen(true);
-                  setChatCreationTab('group');
-                }}
-                className="text-[#0095f6] hover:text-[#1877f2] font-semibold flex items-center gap-1 cursor-pointer"
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>New Group</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setMessagesSectionTab('instants')}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    messagesSectionTab === 'instants'
+                      ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                  <span>Instants</span>
+                  {todayInstants.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 text-white text-[9px] font-bold">
+                      {todayInstants.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMessagesSectionTab('requests')}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    messagesSectionTab === 'requests'
+                      ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Requests
+                </button>
+              </div>
             </div>
 
-            {/* Conversation Threads / Search Results */}
-            <div className="flex-1 overflow-y-auto divide-y divide-[var(--glass-border-subtle)]">
+            {/* Horizontal Instants Preview Row */}
+            <InstantsTray />
+
+            {/* Main Content Area Based on Active Section */}
+            {messagesSectionTab === 'instants' ? (
+              /* INSTANTS SECTION VIEW IN DIRECT */
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">
+                    Active Instants ({todayInstants.length})
+                  </span>
+                  <Link
+                    href="/instants"
+                    className="text-[11px] text-[var(--accent-blue)] font-bold hover:underline"
+                  >
+                    View All →
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  {todayInstants.map((instant) => (
+                    <InstantCard
+                      key={instant.id}
+                      instant={instant}
+                      onClick={() => openInstantViewer(instant.id)}
+                    />
+                  ))}
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={openInstantCreator}
+                    className="w-full py-2.5 rounded-2xl bg-[var(--glass-bg-hover)] hover:bg-[var(--glass-border-highlight)]/20 border border-[var(--glass-border)] text-xs font-bold text-[var(--text-primary)] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create New Instant</span>
+                  </button>
+                </div>
+              </div>
+            ) : messagesSectionTab === 'requests' ? (
+              /* MESSAGE REQUESTS VIEW */
+              <div className="flex-1 overflow-y-auto p-6 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center mx-auto text-[var(--text-secondary)]">
+                  <Users className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-bold text-[var(--text-primary)]">No message requests</p>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  When new people try to message you, their requests will appear here.
+                </p>
+              </div>
+            ) : (
+              /* CHATS SECTION VIEW */
+              <>
+                {/* Instagram Notes & Search Tray */}
+                <NotesTray
+                  onSearchChange={(q) => setSearchQuery(q)}
+                  onFilterTabChange={(tab) => setCurrentFilterTab(tab)}
+                />
+
+                {/* Subheader */}
+                <div className="px-4 pt-3 pb-2 flex items-center justify-between text-xs">
+                  <span className="font-bold text-[var(--text-primary)]">
+                    {currentFilterTab === 'channels'
+                      ? 'Channels & Groups'
+                      : currentFilterTab === 'requests'
+                      ? 'Message Requests'
+                      : currentFilterTab === 'general'
+                      ? 'General Messages'
+                      : 'Messages & Groups'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setIsNewChatOpen(true);
+                      setChatCreationTab('group');
+                    }}
+                    className="text-[#0095f6] hover:text-[#1877f2] font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>New Group</span>
+                  </button>
+                </div>
+
+                {/* Conversation Threads / Search Results */}
+                <div className="flex-1 overflow-y-auto divide-y divide-[var(--glass-border-subtle)]">
               {searchQuery.trim() ? (
                 /* SEARCH RESULTS VIEW */
                 <div className="space-y-4 py-2">
@@ -401,9 +516,11 @@ export default function DirectMessagePage() {
                   })
               )}
             </div>
-          </div>
+          </>
+        )}
+      </div>
 
-          {/* Right Column: Active Conversation */}
+      {/* Right Column: Active Conversation */}
           {activeConversation ? (
             <div
               className={`flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-[var(--bg-primary)] ${
@@ -911,6 +1028,13 @@ export default function DirectMessagePage() {
         }}
         title={selectedMsgIdForReaction ? 'React with Emoji' : 'Pick an Emoji'}
       />
+
+      {/* Instants Creation & Fullscreen Viewer Modals */}
+      <CreateInstantModal
+        isOpen={isCreatorOpen}
+        onClose={closeInstantCreator}
+      />
+      <InstantViewerModal />
     </AppShell>
   );
 }

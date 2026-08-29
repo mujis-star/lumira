@@ -24,7 +24,9 @@ import {
   LogOut,
   Check,
   Plus,
+  Zap,
 } from 'lucide-react';
+import { useInstants } from '@/context/InstantContext';
 import {
   InstagramHomeIcon,
   InstagramSearchIcon,
@@ -43,6 +45,7 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
   const { currentUser, savedAccounts, switchPersona, logout } = useAuth();
   const { totalUnreadCount } = useChat();
   const { unreadCount: notifUnreadCount } = useNotification();
+  const { todayInstants } = useInstants();
   const { theme, toggleTheme } = useTheme();
   const mounted = useIsMounted();
 
@@ -91,6 +94,13 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
       href: '/reels',
       icon: InstagramReelsIcon,
       isActive: pathname === '/reels',
+    },
+    {
+      name: 'Instants',
+      href: '/instants',
+      icon: Zap,
+      isActive: pathname.startsWith('/instants'),
+      badge: mounted && todayInstants.length > 0 ? todayInstants.length : undefined,
     },
     {
       name: 'Messages',

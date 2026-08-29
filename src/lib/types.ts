@@ -301,3 +301,110 @@ export interface FilterPreset {
   cssFilter: string;
   thumbnailClass: string;
 }
+
+export type InstantVisibility = 'Everyone' | 'Friends' | 'Close Friends' | 'Selected Friends';
+
+export interface InstantOverlayText {
+  id: string;
+  text: string;
+  x: number; // percentage (0-100)
+  y: number; // percentage (0-100)
+  fontFamily: string;
+  fontSize: number;
+  color: string;
+  backgroundColor?: string;
+  bold?: boolean;
+  italic?: boolean;
+  align?: 'left' | 'center' | 'right';
+  shadow?: boolean;
+  outline?: boolean;
+  opacity?: number;
+  letterSpacing?: number;
+  rotation?: number;
+  scale?: number;
+}
+
+export type InstantStickerType = 'emoji' | 'mention' | 'location' | 'hashtag' | 'date' | 'time' | 'music';
+
+export interface InstantOverlaySticker {
+  id: string;
+  type: InstantStickerType;
+  content: string; // emoji character or text (e.g. '@elena.vance', '#art', 'Tokyo', 'AUG 29', '12:30 PM')
+  x: number; // percentage (0-100)
+  y: number; // percentage (0-100)
+  scale?: number;
+  rotation?: number;
+  extraData?: {
+    userId?: string;
+    username?: string;
+    locationName?: string;
+    tag?: string;
+    dateStr?: string;
+    timeStr?: string;
+    musicTrack?: AttachedMusic;
+  };
+}
+
+export interface InstantAdjustments {
+  brightness: number; // 0 to 200, default 100
+  contrast: number; // 0 to 200, default 100
+  exposure: number; // -100 to 100, default 0
+  saturation: number; // 0 to 200, default 100
+  temperature: number; // -100 to 100, default 0
+  tint: number; // -100 to 100, default 0
+  highlights: number; // -100 to 100, default 0
+  shadows: number; // -100 to 100, default 0
+  sharpness: number; // 0 to 100, default 0
+  clarity: number; // 0 to 100, default 0
+  fade: number; // 0 to 100, default 0
+  vignette: number; // 0 to 100, default 0
+  grain: number; // 0 to 100, default 0
+  blur: number; // 0 to 20, default 0
+  zoom: number; // 1 to 3, default 1
+  panX: number; // -100 to 100, default 0
+  panY: number; // -100 to 100, default 0
+  rotate: number; // 0, 90, 180, 270 or continuous
+  flipH: boolean;
+  flipV: boolean;
+  straighten: number; // -45 to 45, default 0
+  aspectRatio: 'free' | '1:1' | '4:5' | '9:16' | '16:9';
+}
+
+export interface InstantReaction {
+  userId: string;
+  emoji: string;
+  createdAt: string;
+}
+
+export interface InstantItem {
+  id: string;
+  creatorId: string;
+  creator: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string;
+    isVerified?: boolean;
+  };
+  mediaUrl: string;
+  mediaType: 'image' | 'video';
+  filterId?: string;
+  filterIntensity?: number; // 0 to 100
+  adjustments?: Partial<InstantAdjustments>;
+  textOverlays?: InstantOverlayText[];
+  stickers?: InstantOverlaySticker[];
+  drawingDataUrl?: string;
+  attachedMusic?: AttachedMusic;
+  musicVolume?: number; // 0 to 1
+  videoVolume?: number; // 0 to 1
+  videoTrim?: { start: number; end: number };
+  videoSpeed?: number;
+  caption?: string;
+  createdAt: string;
+  expiresAt: string; // 24 hours from creation
+  visibility: InstantVisibility;
+  allowedViewerIds?: string[];
+  reactions: InstantReaction[];
+  viewers: string[]; // User IDs
+  viewsCount: number;
+}
