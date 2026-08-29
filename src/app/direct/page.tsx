@@ -27,13 +27,24 @@ import {
   Smile,
   Plus,
 } from 'lucide-react';
-import { EmojiPickerModal } from '@/components/ui/EmojiPicker';
+import dynamic from 'next/dynamic';
 import { useInstants } from '@/context/InstantContext';
 import { InstantsTray } from '@/components/instants/InstantsTray';
 import { InstantCard } from '@/components/instants/InstantCard';
-import { CreateInstantModal } from '@/components/instants/CreateInstantModal';
-import { InstantViewerModal } from '@/components/instants/InstantViewerModal';
 import { Zap } from 'lucide-react';
+
+const EmojiPickerModal = dynamic(
+  () => import('@/components/ui/EmojiPicker').then((m) => m.EmojiPickerModal),
+  { ssr: false }
+);
+const CreateInstantModal = dynamic(
+  () => import('@/components/instants/CreateInstantModal').then((m) => m.CreateInstantModal),
+  { ssr: false }
+);
+const InstantViewerModal = dynamic(
+  () => import('@/components/instants/InstantViewerModal').then((m) => m.InstantViewerModal),
+  { ssr: false }
+);
 
 export default function DirectMessagePage() {
   const {

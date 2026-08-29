@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { UserProfile } from '@/lib/types';
+import { UserProfile, UserMode } from '@/lib/types';
 import { SEED_USERS } from '@/lib/seedData';
 import { isFirebaseConfigured, auth as firebaseAuth, db, googleProvider } from '@/lib/firebase';
 import {
@@ -19,12 +19,15 @@ interface AuthContextType {
   savedAccounts: UserProfile[];
   isLoading: boolean;
   isFirebaseActive: boolean;
+  userMode: UserMode;
   login: (emailOrUsername: string, pass: string) => Promise<boolean>;
   loginWithGoogle: (email?: string, name?: string, avatarUrl?: string) => Promise<boolean>;
   loginWithFacebook: (nameOrEmail?: string) => Promise<boolean>;
   loginWithX: (handle?: string, name?: string) => Promise<boolean>;
   signup: (email: string, pass: string, username: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  enterDemoMode: (personaId?: string) => Promise<boolean>;
+  enterGuestMode: () => void;
   switchPersona: (userId: string) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
   toggleFollow: (targetUserId: string) => void;
@@ -100,6 +103,7 @@ export function sanitizeAndDeduplicateUsers(userList: UserProfile[]): UserProfil
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<UserProfile[]>(() => sanitizeAndDeduplicateUsers(SEED_USERS));
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [userMode, setUserMode] = useState<UserMode>('demo');
   const [savedAccountIds, setSavedAccountIds] = useState<string[]>([]);
   const [credentials, setCredentials] = useState<Record<string, string>>({
     'user-admin': DEFAULT_SEED_PASSWORD,
@@ -148,11 +152,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
           if (found) {
             setCurrentUser(found);
+            setUserMode(found.userMode || 'authenticated');
           } else {
-            setCurrentUser(null);
+            // Default to Elena Rostova demo creator
+            const defaultDemo = { ...parsedUsers[0], userMode: 'demo' as const };
+            setCurrentUser(defaultDemo);
+            setUserMode('demo');
           }
         } else {
-          setCurrentUser(null);
+          // Instant Recruiter/Visitor Demo Mode: default to Elena Rostova
+          const defaultDemo = { ...parsedUsers[0], userMode: 'demo' as const };
+          setCurrentUser(defaultDemo);
+          setUserMode('demo');
         }
 
         if (storedSavedAccounts) {
@@ -349,6 +360,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(updated));
     }
+  };
+
+  const enterDemoMode = async (personaId: string = 'user-elena'): Promise<boolean> => {
+    const target = users.find((u) => u.id === personaId) || users[0];
+    if (target) {
+      const demoUser: UserProfile = { ...target, userMode: 'demo' };
+      setCurrentUser(demoUser);
+      setUserMode('demo');
+      rememberAccount(demoUser.id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(CURRENT_USER_ID_KEY, demoUser.id);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const enterGuestMode = () => {
+    const guestUser: UserProfile = {
+      id: 'user-guest',
+      username: 'guest_explorer',
+      displayName: 'Guest Explorer',
+      bio: 'Exploring Lumira Flagship Experience ✦',
+      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
+      followersCount: 12,
+      followingCount: 48,
+      postsCount: 0,
+      followers: [],
+      following: ['user-elena', 'user-marcus', 'user-aria'],
+      createdAt: new Date().toISOString(),
+      userMode: 'guest',
+    };
+    setCurrentUser(guestUser);
+    setUserMode('guest');
   };
 
   const switchPersona = (userId: string) => {
@@ -708,12 +753,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         savedAccounts,
         isLoading,
         isFirebaseActive,
+        userMode,
         login,
         loginWithGoogle,
         loginWithFacebook,
         loginWithX,
         signup,
         logout,
+        enterDemoMode,
+        enterGuestMode,
         switchPersona,
         updateProfile,
         toggleFollow,

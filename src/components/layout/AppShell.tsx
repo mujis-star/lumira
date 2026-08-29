@@ -2,16 +2,30 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
 import { Header } from './Header';
-import { StoryViewerModal } from '../stories/StoryViewerModal';
-import { StoryCreatorModal } from '../stories/StoryCreatorModal';
-import { CreatePostModal } from '../create/CreatePostModal';
-import { SearchDrawer } from '../search/SearchDrawer';
 import { useStory } from '@/context/StoryContext';
 import { useAuth } from '@/context/AuthContext';
+
+const StoryViewerModal = dynamic(
+  () => import('../stories/StoryViewerModal').then((m) => m.StoryViewerModal),
+  { ssr: false }
+);
+const StoryCreatorModal = dynamic(
+  () => import('../stories/StoryCreatorModal').then((m) => m.StoryCreatorModal),
+  { ssr: false }
+);
+const CreatePostModal = dynamic(
+  () => import('../create/CreatePostModal').then((m) => m.CreatePostModal),
+  { ssr: false }
+);
+const SearchDrawer = dynamic(
+  () => import('../search/SearchDrawer').then((m) => m.SearchDrawer),
+  { ssr: false }
+);
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -19,18 +33,17 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, title }: AppShellProps) {
-  const router = useRouter();
-  const { currentUser, isLoading } = useAuth();
+  const { currentUser, isLoading, enterDemoMode, userMode } = useAuth();
   const { isCreatorOpen, closeStoryCreator } = useStory();
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // Security Route Guard: redirect unauthenticated users to /auth
+  // Instant Demo Access: If not authenticated, automatically initialize demo mode for public reviewers/crawlers
   useEffect(() => {
     if (!isLoading && !currentUser) {
-      router.replace('/auth');
+      enterDemoMode();
     }
-  }, [currentUser, isLoading, router]);
+  }, [currentUser, isLoading, enterDemoMode]);
 
   // Global Ctrl+K listener for search
   useEffect(() => {
@@ -44,16 +57,12 @@ export function AppShell({ children, title }: AppShellProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Secure Loading State
-  if (isLoading || !currentUser) {
+  // Quick non-blocking skeleton/loader during initial hydration (max 150ms)
+  if (isLoading && !currentUser) {
     return (
       <div className="min-h-screen bg-[#07070b] text-white flex flex-col items-center justify-center select-none relative overflow-hidden">
-        {/* Background Ambient Glow */}
-        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col items-center gap-4 animate-fade-in">
-          <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-2xl shadow-purple-500/30 ring-2 ring-purple-500/40 animate-pulse">
+        <div className="relative z-10 flex flex-col items-center gap-3 animate-pulse">
+          <div className="relative w-14 h-14 rounded-2xl overflow-hidden shadow-2xl ring-2 ring-purple-500/40">
             <Image
               src="/lumira-logo.png"
               alt="Lumira Logo"
@@ -63,14 +72,9 @@ export function AppShell({ children, title }: AppShellProps) {
               unoptimized
             />
           </div>
-          <div className="text-center space-y-1">
-            <h2 className="text-lg font-black tracking-wider bg-gradient-to-r from-blue-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">
-              LUMIRA
-            </h2>
-            <p className="text-[10px] font-bold text-neutral-400 tracking-widest uppercase">
-              Verifying Secure Session...
-            </p>
-          </div>
+          <p className="text-xs font-bold text-neutral-400 tracking-wider">
+            Loading Lumira ✦
+          </p>
         </div>
       </div>
     );
@@ -114,6 +118,19 @@ export function AppShell({ children, title }: AppShellProps) {
       <div className="flex-1 md:pl-[84px] xl:pl-[260px] flex flex-col min-h-screen pb-20 md:pb-6 relative z-10">
         {/* Mobile Top Glass Header */}
         <Header title={title} />
+
+        {/* Demo Mode Notice for Recruiters / Visitors */}
+        {userMode === 'demo' && (
+          <div className="hidden sm:flex items-center justify-between px-4 py-1.5 mx-4 mt-2 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+              <span className="font-semibold">Demo Mode · Exploring as {currentUser?.displayName || 'Elena Rostova'}</span>
+            </div>
+            <Link href="/auth" className="text-[11px] font-bold text-[var(--accent-blue)] hover:underline">
+              Switch Persona / Auth →
+            </Link>
+          </div>
+        )}
 
         {/* Page Content */}
         <main className="flex-1 w-full mx-auto px-2 sm:px-4 py-2 sm:py-4">

@@ -1,12 +1,20 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { useInstants } from '@/context/InstantContext';
 import { InstantCard } from '@/components/instants/InstantCard';
-import { CreateInstantModal } from '@/components/instants/CreateInstantModal';
-import { InstantViewerModal } from '@/components/instants/InstantViewerModal';
+
+const CreateInstantModal = dynamic(
+  () => import('@/components/instants/CreateInstantModal').then((m) => m.CreateInstantModal),
+  { ssr: false }
+);
+const InstantViewerModal = dynamic(
+  () => import('@/components/instants/InstantViewerModal').then((m) => m.InstantViewerModal),
+  { ssr: false }
+);
 import {
   ArrowLeft,
   Plus,

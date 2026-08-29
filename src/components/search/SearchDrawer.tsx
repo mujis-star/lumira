@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '../ui/Avatar';
+import { EmptyState } from '../ui/EmptyState';
 import {
   Search,
   X,
@@ -224,9 +225,19 @@ export function SearchDrawer({ isOpen, onClose }: SearchDrawerProps) {
                   ))}
 
                   {matchingUsers.length === 0 && matchingTags.length === 0 && (
-                    <p className="text-center py-12 text-xs text-[var(--text-secondary)]">
-                      No results found.
-                    </p>
+                    <EmptyState
+                      icon={Search}
+                      title="Nothing Found Yet"
+                      description={`No matching creators or tags found for "${query}". Try searching for people, topics, or creative atmospheres.`}
+                      suggestions={['#photography', '#architecture', '#minimal', 'elena.rostova', 'marcus.lens']}
+                      onSelectSuggestion={(s) => {
+                        if (s.startsWith('#')) {
+                          handleSelectTag(s.replace('#', ''));
+                        } else {
+                          handleSelectUser(s.replace('@', ''));
+                        }
+                      }}
+                    />
                   )}
                 </div>
               ) : (

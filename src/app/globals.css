@@ -349,3 +349,21 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Accessibility: Visible Focus State */
+:focus-visible {
+  outline: 2px solid var(--accent-blue) !important;
+  outline-offset: 2px !important;
+}
+
+/* Accessibility: Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

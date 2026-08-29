@@ -1,3 +1,5 @@
+export type UserMode = 'authenticated' | 'demo' | 'guest';
+
 export interface UserProfile {
   id: string;
   username: string;
@@ -21,6 +23,7 @@ export interface UserProfile {
   following: string[]; // User IDs
   createdAt: string;
   themePreference?: 'dark' | 'light' | 'midnight';
+  userMode?: UserMode;
 }
 
 export interface PostMedia {

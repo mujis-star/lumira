@@ -3,14 +3,17 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { useNotification } from '@/context/NotificationContext';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/ui/Avatar';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { formatTimeAgo } from '@/lib/utils';
 import { Heart } from 'lucide-react';
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const { filteredNotifications, filter, setFilter, markAllAsRead } = useNotification();
   const { toggleFollow, isFollowing } = useAuth();
 
@@ -168,17 +171,20 @@ export default function NotificationsPage() {
               )}
             </div>
           ) : (
-            <div className="text-center py-16 sm:py-20 space-y-3">
-              <div className="w-16 h-16 rounded-full bg-[var(--glass-bg-hover)] border border-[var(--glass-border)] flex items-center justify-center mx-auto text-[var(--accent-blue)] shadow-md">
-                <Heart className="w-7 h-7 stroke-[2]" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-base font-bold text-[var(--text-primary)]">Activity On Your Account</p>
-                <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto leading-relaxed">
-                  When someone follows you, likes or comments on your posts, you&apos;ll see real-time updates here.
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              icon={Heart}
+              title="No Notifications Yet"
+              description="When creators like your posts, leave comments, or start following you, you'll see real-time updates here."
+              actionLabel="Explore Feed"
+              onAction={() => {
+                router.push('/');
+              }}
+              suggestions={['Discover Creators', 'Trending Reels', 'Explore Moments']}
+              onSelectSuggestion={(s) => {
+                if (s === 'Trending Reels') router.push('/reels');
+                else router.push('/explore');
+              }}
+            />
           )}
         </div>
       </div>
