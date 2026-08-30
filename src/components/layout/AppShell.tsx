@@ -9,6 +9,7 @@ import { Header } from './Header';
 import { OfflineBanner } from '../ui/OfflineBanner';
 import { useStory } from '@/context/StoryContext';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter, usePathname } from 'next/navigation';
 
 const StoryViewerModal = dynamic(
   () => import('../stories/StoryViewerModal').then((m) => m.StoryViewerModal),
@@ -33,10 +34,19 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, title }: AppShellProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { currentUser, isLoading } = useAuth();
   const { isCreatorOpen, closeStoryCreator } = useStory();
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Redirect unauthenticated visitors directly to /auth login page
+  useEffect(() => {
+    if (!isLoading && !currentUser && pathname !== '/auth') {
+      router.replace('/auth');
+    }
+  }, [isLoading, currentUser, pathname, router]);
 
   // Global Ctrl+K listener for search
   useEffect(() => {
@@ -50,8 +60,8 @@ export function AppShell({ children, title }: AppShellProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Quick non-blocking skeleton/loader during initial hydration (max 150ms)
-  if (isLoading && !currentUser) {
+  // Quick non-blocking splash during initial load or while redirecting unauthenticated users to /auth
+  if (isLoading || !currentUser) {
     return (
       <div className="min-h-screen bg-[#07070b] text-white flex flex-col items-center justify-center select-none relative overflow-hidden">
         <div className="relative z-10 flex flex-col items-center gap-3 animate-pulse">
