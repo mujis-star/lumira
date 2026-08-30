@@ -26,6 +26,7 @@ interface AuthContextType {
   loginWithX: (handle?: string, name?: string) => Promise<boolean>;
   signup: (email: string, pass: string, username: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  enterDemoMode: (personaId?: string) => Promise<boolean>;
   enterGuestMode: () => void;
   switchPersona: (userId: string) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
@@ -363,6 +364,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(updated));
     }
+  };
+
+  const enterDemoMode = async (personaId: string = 'user-elena'): Promise<boolean> => {
+    const target = users.find((u) => u.id === personaId) || users[0];
+    if (target) {
+      const demoUser: UserProfile = { ...target, userMode: 'demo' };
+      setCurrentUser(demoUser);
+      setUserMode('demo');
+      rememberAccount(demoUser.id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(CURRENT_USER_ID_KEY, demoUser.id);
+      }
+      return true;
+    }
+    return false;
   };
 
   const enterGuestMode = () => {
@@ -790,6 +806,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithX,
         signup,
         logout,
+        enterDemoMode,
         enterGuestMode,
         switchPersona,
         updateProfile,

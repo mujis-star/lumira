@@ -6,7 +6,7 @@ import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { sounds, triggerConfetti } from '@/lib/utils';
-import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus, X, Loader2, Globe, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus, X, Loader2, Globe, ArrowLeft, Sparkles } from 'lucide-react';
 
 interface GoogleCredentialResponse {
   credential?: string;
@@ -65,7 +65,7 @@ const DEFAULT_GOOGLE_ACCOUNTS: GoogleAccount[] = [
 
 export default function AuthPage() {
   const router = useRouter();
-  const { currentUser, isLoading: isAuthLoading, login, signup, loginWithGoogle } = useAuth();
+  const { currentUser, isLoading: isAuthLoading, login, signup, loginWithGoogle, enterDemoMode } = useAuth();
 
   // Mode: 'login' | 'signup'
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -544,6 +544,24 @@ export default function AuthPage() {
               onClick={handleOpenGoogleChooser}
               className="w-full flex justify-center min-h-[44px] cursor-pointer"
             />
+          </div>
+
+          {/* Instant Demo Access (No Login Required) */}
+          <div className="pt-2 border-t border-[var(--glass-border-subtle)]">
+            <button
+              type="button"
+              onClick={async () => {
+                setIsLoading(true);
+                sounds.playPop();
+                await enterDemoMode();
+                triggerConfetti(0.5, 0.5);
+                router.push('/');
+              }}
+              className="w-full py-2.5 px-4 rounded-2xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 hover:text-purple-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Explore Demo (Instant Access)</span>
+            </button>
           </div>
         </div>
 

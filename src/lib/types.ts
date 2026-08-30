@@ -1,4 +1,4 @@
-export type UserMode = 'authenticated' | 'guest';
+export type UserMode = 'demo' | 'guest' | 'authenticated';
 
 export interface UserProfile {
   id: string;
