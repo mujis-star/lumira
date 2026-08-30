@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
@@ -34,17 +33,10 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, title }: AppShellProps) {
-  const { currentUser, isLoading, enterDemoMode, userMode } = useAuth();
+  const { currentUser, isLoading } = useAuth();
   const { isCreatorOpen, closeStoryCreator } = useStory();
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  // Instant Demo Access: If not authenticated, automatically initialize demo mode for public reviewers/crawlers
-  useEffect(() => {
-    if (!isLoading && !currentUser) {
-      enterDemoMode();
-    }
-  }, [currentUser, isLoading, enterDemoMode]);
 
   // Global Ctrl+K listener for search
   useEffect(() => {
@@ -122,19 +114,6 @@ export function AppShell({ children, title }: AppShellProps) {
       <div className="flex-1 md:pl-[84px] xl:pl-[260px] flex flex-col min-h-screen pb-20 md:pb-6 relative z-10">
         {/* Mobile Top Glass Header */}
         <Header title={title} />
-
-        {/* Demo Mode Notice for Recruiters / Visitors */}
-        {userMode === 'demo' && (
-          <div className="hidden sm:flex items-center justify-between px-4 py-1.5 mx-4 mt-2 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-              <span className="font-semibold">Demo Mode · Exploring as {currentUser?.displayName || 'Elena Rostova'}</span>
-            </div>
-            <Link href="/auth" className="text-[11px] font-bold text-[var(--accent-blue)] hover:underline">
-              Switch Persona / Auth →
-            </Link>
-          </div>
-        )}
 
         {/* Page Content */}
         <main className="flex-1 w-full mx-auto px-2 sm:px-4 py-2 sm:py-4">

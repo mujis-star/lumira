@@ -26,7 +26,6 @@ interface AuthContextType {
   loginWithX: (handle?: string, name?: string) => Promise<boolean>;
   signup: (email: string, pass: string, username: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  enterDemoMode: (personaId?: string) => Promise<boolean>;
   enterGuestMode: () => void;
   switchPersona: (userId: string) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
@@ -65,10 +64,10 @@ export function sanitizeAndDeduplicateUsers(userList: UserProfile[]): UserProfil
       (fid) => fid !== u.id && fid !== u.username && fid !== cleanUsername
     );
 
-    // Standardize avatar for Mujeeb Rahman
+    // Standardize avatar fallback for empty avatarUrl
     let avatar = u.avatarUrl;
-    if (cleanUsername === 'mujee00012' || u.email?.toLowerCase() === 'mujee00012@gmail.com') {
-      avatar = '/images/avatar-mujeeb.png';
+    if (!avatar || avatar.trim() === '') {
+      avatar = cleanUsername === 'mujee00012' ? '/images/avatar-mujeeb.png' : `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanUsername}`;
     }
 
     const cleanUser: UserProfile = {
@@ -88,11 +87,10 @@ export function sanitizeAndDeduplicateUsers(userList: UserProfile[]): UserProfil
       byUsername.set(cleanUsername, {
         ...cleanUser,
         ...existing,
-        avatarUrl: cleanUser.avatarUrl || existing.avatarUrl,
         following: Array.from(new Set([...cleanUser.following, ...existing.following])),
         followers: Array.from(new Set([...cleanUser.followers, ...existing.followers])),
-        followingCount: Math.max(cleanUser.following.length, existing.following.length),
-        followersCount: Math.max(cleanUser.followers.length, existing.followers.length),
+        followingCount: Math.max(cleanUser.followingCount, existing.followingCount),
+        followersCount: Math.max(cleanUser.followersCount, existing.followersCount),
       });
     }
   }
@@ -103,7 +101,7 @@ export function sanitizeAndDeduplicateUsers(userList: UserProfile[]): UserProfil
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<UserProfile[]>(() => sanitizeAndDeduplicateUsers(SEED_USERS));
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [userMode, setUserMode] = useState<UserMode>('demo');
+  const [userMode, setUserMode] = useState<UserMode>('authenticated');
   const [savedAccountIds, setSavedAccountIds] = useState<string[]>([]);
   const [credentials, setCredentials] = useState<Record<string, string>>({
     'user-admin': DEFAULT_SEED_PASSWORD,
@@ -154,16 +152,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setCurrentUser(found);
             setUserMode(found.userMode || 'authenticated');
           } else {
-            // Default to Elena Rostova demo creator
-            const defaultDemo = { ...parsedUsers[0], userMode: 'demo' as const };
-            setCurrentUser(defaultDemo);
-            setUserMode('demo');
+            setCurrentUser(null);
           }
         } else {
-          // Instant Recruiter/Visitor Demo Mode: default to Elena Rostova
-          const defaultDemo = { ...parsedUsers[0], userMode: 'demo' as const };
-          setCurrentUser(defaultDemo);
-          setUserMode('demo');
+          setCurrentUser(null);
         }
 
         if (storedSavedAccounts) {
@@ -371,21 +363,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(updated));
     }
-  };
-
-  const enterDemoMode = async (personaId: string = 'user-elena'): Promise<boolean> => {
-    const target = users.find((u) => u.id === personaId) || users[0];
-    if (target) {
-      const demoUser: UserProfile = { ...target, userMode: 'demo' };
-      setCurrentUser(demoUser);
-      setUserMode('demo');
-      rememberAccount(demoUser.id);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(CURRENT_USER_ID_KEY, demoUser.id);
-      }
-      return true;
-    }
-    return false;
   };
 
   const enterGuestMode = () => {
@@ -778,7 +755,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithX,
         signup,
         logout,
-        enterDemoMode,
         enterGuestMode,
         switchPersona,
         updateProfile,

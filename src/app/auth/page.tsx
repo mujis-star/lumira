@@ -6,7 +6,7 @@ import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { sounds, triggerConfetti } from '@/lib/utils';
-import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus, X, Loader2, Globe, ArrowLeft, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, UserPlus, X, Loader2, Globe, ArrowLeft } from 'lucide-react';
 
 interface GoogleCredentialResponse {
   credential?: string;
@@ -65,7 +65,7 @@ const DEFAULT_GOOGLE_ACCOUNTS: GoogleAccount[] = [
 
 export default function AuthPage() {
   const router = useRouter();
-  const { currentUser, isLoading: isAuthLoading, login, signup, loginWithGoogle, enterDemoMode } = useAuth();
+  const { currentUser, isLoading: isAuthLoading, login, signup, loginWithGoogle } = useAuth();
 
   // Mode: 'login' | 'signup'
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -544,75 +544,6 @@ export default function AuthPage() {
               onClick={handleOpenGoogleChooser}
               className="w-full flex justify-center min-h-[44px] cursor-pointer"
             />
-          </div>
-
-          {/* Instant Demo Access for Recruiters & Visitors */}
-          <div className="space-y-2.5 pt-3 border-t border-[var(--glass-border-subtle)]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-primary)]">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Explore Demo (Instant Access)</span>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold">
-                Recruiter Mode
-              </span>
-            </div>
-
-            <div className="space-y-1.5">
-              {[
-                {
-                  id: 'user-elena',
-                  name: 'Elena Rostova',
-                  handle: '@elena.rostova',
-                  role: 'Creative Director & Visual Artist',
-                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-                },
-                {
-                  id: 'user-marcus',
-                  name: 'Marcus Chen',
-                  handle: '@marcus.lens',
-                  role: 'Architectural Photographer',
-                  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-                },
-                {
-                  id: 'user-aria',
-                  name: 'Aria Vance',
-                  handle: '@aria.vance',
-                  role: '3D & Generative Artist',
-                  avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80',
-                },
-              ].map((persona) => (
-                <button
-                  key={persona.id}
-                  type="button"
-                  onClick={async () => {
-                    setIsLoading(true);
-                    sounds.playPop();
-                    await enterDemoMode(persona.id);
-                    triggerConfetti(0.5, 0.5);
-                    router.push('/');
-                  }}
-                  className="w-full flex items-center justify-between p-2.5 rounded-2xl bg-[var(--glass-input-bg)] hover:bg-[var(--glass-bg-hover)] border border-[var(--glass-border)] hover:border-[var(--glass-border-highlight)] transition-all cursor-pointer group text-left"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/20">
-                      <Image src={persona.avatar} alt={persona.name} fill className="object-cover" unoptimized />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-blue)]">
-                        {persona.name}
-                      </p>
-                      <p className="text-[10px] text-[var(--text-secondary)] truncate">
-                        {persona.role}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-[var(--accent-blue)] font-bold shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Launch →
-                  </span>
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
