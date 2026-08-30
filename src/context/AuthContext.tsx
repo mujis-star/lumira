@@ -252,8 +252,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               let hasChanges = false;
               for (const serverUser of data.users) {
                 const local = prevMap.get(serverUser.id);
-                if (!local || local.followersCount !== serverUser.followersCount || local.followingCount !== serverUser.followingCount) {
-                  prevMap.set(serverUser.id, serverUser);
+                if (
+                  !local ||
+                  local.followersCount !== serverUser.followersCount ||
+                  local.followingCount !== serverUser.followingCount ||
+                  (serverUser.avatarUrl && serverUser.avatarUrl !== local.avatarUrl && !local.avatarUrl.startsWith('data:image'))
+                ) {
+                  prevMap.set(serverUser.id, {
+                    ...serverUser,
+                    avatarUrl:
+                      local && local.avatarUrl && (local.avatarUrl.startsWith('data:image') || !serverUser.avatarUrl)
+                        ? local.avatarUrl
+                        : serverUser.avatarUrl || local?.avatarUrl,
+                  });
                   hasChanges = true;
                 }
               }
@@ -637,6 +648,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCurrentUser(updatedUser);
     const updatedUsers = users.map((u) => (u.id === currentUser.id ? updatedUser : u));
     persistUsers(updatedUsers, updatedUser);
+
+    // Sync to backend store so subsequent sync cycles preserve the new avatar
+    fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_user', payload: updatedUser }),
+    }).catch(() => {});
   };
 
   const resolveUser = (idOrUsername: string): UserProfile | undefined => {

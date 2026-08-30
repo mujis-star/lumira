@@ -19,8 +19,8 @@ function sanitizeUser(u: UserProfile): UserProfile {
   );
 
   let avatar = u.avatarUrl;
-  if (cleanUsername === 'mujee00012' || u.email?.toLowerCase() === 'mujee00012@gmail.com') {
-    avatar = '/images/avatar-mujeeb.png';
+  if (!avatar || avatar.trim() === '') {
+    avatar = cleanUsername === 'mujee00012' ? '/images/avatar-mujeeb.png' : `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanUsername}`;
   }
 
   return {
@@ -266,6 +266,13 @@ export async function POST(req: Request) {
     if (action === 'create_post' && payload) {
       const p: Post = payload;
       postsList = [p, ...postsList.filter((existing) => existing.id !== p.id)];
+    }
+
+    if (action === 'update_user' && payload) {
+      const u: UserProfile = payload;
+      const clean = sanitizeUser(u);
+      usersMap.set(clean.id, clean);
+      usersMap.set(clean.username, clean);
     }
 
     return NextResponse.json({
