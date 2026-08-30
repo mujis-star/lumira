@@ -55,7 +55,7 @@ export function RightWidgetPanel() {
   }, [cleanSuggestions, suggestedSearch]);
 
   return (
-    <aside className="w-[320px] shrink-0 hidden lg:block select-none text-xs text-[var(--text-secondary)]">
+    <aside className="w-[320px] shrink-0 hidden xl:block select-none text-xs text-[var(--text-secondary)]">
       {/* Frosted Glass Suggested Card Container */}
       <div className="bg-[var(--glass-card-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] rounded-3xl p-5 mb-5 transition-all hover:border-[var(--glass-border-highlight)]">
         {/* Current User Row */}

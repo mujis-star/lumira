@@ -72,9 +72,9 @@ export default function HomePage() {
 
   return (
     <AppShell title="Lumira">
-      <div className="max-w-[975px] mx-auto pt-1 sm:pt-4 px-0 sm:px-4 flex justify-center gap-12 select-none">
-        {/* Main Feed Column (max-w-[470px] or 630px) */}
-        <div className="w-full max-w-[490px] shrink-0 space-y-4">
+      <div className="w-full max-w-[1240px] mx-auto pt-1 sm:pt-4 px-0 sm:px-4 flex justify-center gap-8 xl:gap-12 select-none">
+        {/* Main Feed Column (Fluid: max-w-[600px]) */}
+        <div className="w-full max-w-[600px] shrink-0 space-y-4">
           {/* Stories Carousel */}
           <StoryBar />
 

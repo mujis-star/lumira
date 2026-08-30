@@ -33,7 +33,7 @@ export function MobileNav({ onCreateClick }: MobileNavProps) {
         {/* 1. Home */}
         <Link
           href="/"
-          className={`p-2 rounded-xl transition-all active:scale-90 ${
+          className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl transition-all active:scale-90 ${
             isHome
               ? 'text-[var(--accent-blue)] bg-[var(--glass-bg-hover)]'
               : 'text-[var(--text-primary)] opacity-80 hover:opacity-100'
@@ -43,32 +43,33 @@ export function MobileNav({ onCreateClick }: MobileNavProps) {
           <InstagramHomeIcon className="w-5 h-5" filled={isHome} />
         </Link>
 
-        {/* 2. Search (Q) */}
+        {/* 2. Search / Explore */}
         <Link
           href="/explore"
-          className={`p-2 rounded-xl transition-all active:scale-90 ${
+          className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl transition-all active:scale-90 ${
             isSearch
               ? 'text-[var(--accent-blue)] bg-[var(--glass-bg-hover)]'
               : 'text-[var(--text-primary)] opacity-80 hover:opacity-100'
           }`}
-          aria-label="Search"
+          aria-label="Search and Explore"
         >
           <InstagramSearchIcon className="w-5 h-5" filled={isSearch} />
         </Link>
 
-        {/* 3. Create ([+]) */}
+        {/* 3. Create Moment */}
         <button
+          type="button"
           onClick={onCreateClick}
-          className="p-2 rounded-xl text-[var(--text-primary)] opacity-90 hover:opacity-100 hover:bg-[var(--glass-bg-hover)] transition-all active:scale-90 cursor-pointer"
-          aria-label="Create"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl text-[var(--text-primary)] opacity-90 hover:opacity-100 hover:bg-[var(--glass-bg-hover)] transition-all active:scale-90 cursor-pointer"
+          aria-label="Create new moment"
         >
           <InstagramCreateIcon className="w-5 h-5" />
         </button>
 
-        {/* 4. Reels (Clapper) */}
+        {/* 4. Reels */}
         <Link
           href="/reels"
-          className={`p-2 rounded-xl transition-all active:scale-90 ${
+          className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl transition-all active:scale-90 ${
             isReels
               ? 'text-[var(--accent-blue)] bg-[var(--glass-bg-hover)]'
               : 'text-[var(--text-primary)] opacity-80 hover:opacity-100'
@@ -81,10 +82,10 @@ export function MobileNav({ onCreateClick }: MobileNavProps) {
         {/* 5. Profile */}
         <Link
           href={currentUser ? `/profile/${currentUser.username}` : '/auth'}
-          className={`p-1 rounded-full transition-all active:scale-90 ${
-            isProfile ? 'ring-2 ring-[var(--accent-blue)] ring-offset-2 ring-offset-transparent' : ''
+          className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl transition-all active:scale-90 ${
+            isProfile ? 'ring-2 ring-[var(--accent-blue)] bg-[var(--glass-bg-hover)]' : ''
           }`}
-          aria-label="Profile"
+          aria-label="Profile and personal account"
         >
           {mounted && currentUser ? (
             <Avatar src={currentUser.avatarUrl} alt={currentUser.displayName} size="xs" />

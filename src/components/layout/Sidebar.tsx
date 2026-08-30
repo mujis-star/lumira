@@ -39,6 +39,22 @@ interface SidebarProps {
   onSearchClick: () => void;
 }
 
+interface SidebarNavItem {
+  name: string;
+  href?: string;
+  icon?: React.ComponentType<{ className?: string; filled?: boolean }> | React.ComponentType<{ className?: string }>;
+  onClick?: () => void;
+  isActive?: boolean;
+  isAction?: boolean;
+  isProfile?: boolean;
+  badge?: number | string;
+}
+
+interface SidebarNavSection {
+  title: string;
+  items: SidebarNavItem[];
+}
+
 export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -70,72 +86,92 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
     router.push('/auth');
   };
 
-  const navItems = [
+  const navSections: SidebarNavSection[] = [
     {
-      name: 'Home',
-      href: '/',
-      icon: InstagramHomeIcon,
-      isActive: pathname === '/',
+      title: 'Discover',
+      items: [
+        {
+          name: 'Home',
+          href: '/',
+          icon: InstagramHomeIcon,
+          isActive: pathname === '/',
+        },
+        {
+          name: 'Search',
+          onClick: onSearchClick,
+          icon: InstagramSearchIcon,
+          isAction: true,
+        },
+        {
+          name: 'Explore',
+          href: '/explore',
+          icon: Compass,
+          isActive: pathname === '/explore',
+        },
+        {
+          name: 'Reels',
+          href: '/reels',
+          icon: InstagramReelsIcon,
+          isActive: pathname === '/reels',
+        },
+        {
+          name: 'Instants',
+          href: '/instants',
+          icon: Zap,
+          isActive: pathname.startsWith('/instants'),
+          badge: mounted && todayInstants.length > 0 ? todayInstants.length : undefined,
+        },
+      ],
     },
     {
-      name: 'Search',
-      onClick: onSearchClick,
-      icon: InstagramSearchIcon,
-      isAction: true,
+      title: 'Community',
+      items: [
+        {
+          name: 'Messages',
+          href: '/direct',
+          icon: Send,
+          isActive: pathname.startsWith('/direct'),
+          badge: mounted && totalUnreadCount > 0 ? totalUnreadCount : undefined,
+        },
+        {
+          name: 'Notifications',
+          href: '/notifications',
+          icon: Heart,
+          isActive: pathname === '/notifications',
+          badge: mounted && notifUnreadCount > 0 ? notifUnreadCount : undefined,
+        },
+      ],
     },
     {
-      name: 'Explore',
-      href: '/explore',
-      icon: Compass,
-      isActive: pathname === '/explore',
+      title: 'Create',
+      items: [
+        {
+          name: 'Create',
+          onClick: onCreateClick,
+          icon: InstagramCreateIcon,
+          isAction: true,
+        },
+      ],
     },
     {
-      name: 'Reels',
-      href: '/reels',
-      icon: InstagramReelsIcon,
-      isActive: pathname === '/reels',
-    },
-    {
-      name: 'Instants',
-      href: '/instants',
-      icon: Zap,
-      isActive: pathname.startsWith('/instants'),
-      badge: mounted && todayInstants.length > 0 ? todayInstants.length : undefined,
-    },
-    {
-      name: 'Messages',
-      href: '/direct',
-      icon: Send,
-      isActive: pathname.startsWith('/direct'),
-      badge: mounted && totalUnreadCount > 0 ? totalUnreadCount : undefined,
-    },
-    {
-      name: 'Notifications',
-      href: '/notifications',
-      icon: Heart,
-      isActive: pathname === '/notifications',
-      badge: mounted && notifUnreadCount > 0 ? notifUnreadCount : undefined,
-    },
-    {
-      name: 'Create',
-      onClick: onCreateClick,
-      icon: InstagramCreateIcon,
-      isAction: true,
-    },
-    {
-      name: 'Profile',
-      href: currentUser ? `/profile/${currentUser.username}` : '/auth',
-      isProfile: true,
-      isActive: currentUser ? pathname === `/profile/${currentUser.username}` : false,
+      title: 'Personal',
+      items: [
+        {
+          name: 'Profile',
+          href: currentUser ? `/profile/${currentUser.username}` : '/auth',
+          isProfile: true,
+          isActive: currentUser ? pathname === `/profile/${currentUser.username}` : false,
+        },
+      ],
     },
   ];
 
   return (
-    <aside className="hidden md:flex flex-col fixed top-3 left-3 bottom-3 w-[72px] xl:w-[244px] bg-[var(--glass-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] rounded-3xl z-30 px-3 py-5 select-none transition-all justify-between">
+    <aside className="hidden md:flex flex-col fixed top-3 left-3 bottom-3 w-[72px] xl:w-[244px] bg-[var(--glass-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] rounded-3xl z-30 px-2.5 py-4 select-none transition-all justify-between overflow-y-auto no-scrollbar">
       {/* Top Section: Brand & Nav Links */}
       <div className="flex-col flex flex-1">
         {/* Lumira Brand Wordmark / Icon */}
-        <div className="px-3 pt-1 pb-5 mb-2 border-b border-[var(--glass-border-subtle)]">
+        <div className="px-2.5 pt-1 pb-4 mb-2 border-b border-[var(--glass-border-subtle)]">
           <div className="hidden xl:block">
             <InstagramLogo size="md" />
           </div>
@@ -144,90 +180,99 @@ export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
           </div>
         </div>
 
-        {/* Main Navigation Links */}
-        <nav className="flex-1 space-y-1.5 py-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
+        {/* Main Grouped Navigation Links */}
+        <nav className="flex-1 space-y-3.5 py-1">
+          {navSections.map((section) => (
+            <div key={section.title} className="space-y-1">
+              <span className="hidden xl:block px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-60">
+                {section.title}
+              </span>
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
 
-            if (item.isAction) {
-              return (
-                <button
-                  key={item.name}
-                  onClick={item.onClick}
-                  className="w-full flex items-center gap-4 px-3 py-3 rounded-2xl text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] border border-transparent hover:border-[var(--glass-border-subtle)] transition-all cursor-pointer group active:scale-98"
-                  aria-label={item.name}
-                >
-                  <div className="relative shrink-0 group-hover:scale-110 transition-transform text-[var(--text-primary)]">
-                    {Icon && <Icon className="w-6 h-6 stroke-[1.75]" />}
-                  </div>
-                  <span className="hidden xl:inline text-[15px]">{item.name}</span>
-                </button>
-              );
-            }
-
-            if (item.isProfile) {
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href!}
-                  className={`flex items-center gap-4 px-3 py-3 rounded-2xl text-sm transition-all border ${
-                    item.isActive
-                      ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-sm'
-                      : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
-                  } active:scale-98`}
-                  aria-label="Profile"
-                >
-                  <div className="shrink-0">
-                    {mounted && currentUser ? (
-                      <div
-                        className={`rounded-full p-[2px] transition-transform ${
-                          item.isActive ? 'ring-2 ring-[var(--accent-blue)]' : ''
-                        }`}
+                  if (item.isAction) {
+                    return (
+                      <button
+                        key={item.name}
+                        onClick={item.onClick}
+                        className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] border border-transparent hover:border-[var(--glass-border-subtle)] transition-all cursor-pointer group active:scale-98"
+                        aria-label={item.name}
                       >
-                        <Avatar src={currentUser.avatarUrl} alt={currentUser.displayName} size="xs" />
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-neutral-300 dark:bg-neutral-700" />
-                    )}
-                  </div>
-                  <span className="hidden xl:inline text-[15px] truncate">
-                    {mounted && currentUser ? 'Profile' : 'Log In'}
-                  </span>
-                </Link>
-              );
-            }
+                        <div className="relative shrink-0 group-hover:scale-105 transition-transform text-[var(--text-primary)]">
+                          {Icon && <Icon className="w-5 h-5 stroke-[1.75]" />}
+                        </div>
+                        <span className="hidden xl:inline text-[14px]">{item.name}</span>
+                      </button>
+                    );
+                  }
 
-            return (
-              <Link
-                key={item.name}
-                href={item.href!}
-                className={`flex items-center justify-between px-3 py-3 rounded-2xl text-sm transition-all border ${
-                  item.isActive
-                    ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-sm'
-                    : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
-                } active:scale-98`}
-                aria-label={item.name}
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="relative shrink-0 group-hover:scale-110 transition-transform">
-                    {Icon && (
-                      <Icon
-                        className={`w-6 h-6 stroke-[1.75] ${
-                          item.isActive ? 'fill-current text-[var(--accent-blue)]' : 'text-[var(--text-primary)]'
-                        }`}
-                      />
-                    )}
-                    {item.badge !== undefined && (
-                      <span className="absolute -top-1 -right-1.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#ff3040] text-white flex items-center justify-center min-w-[16px] h-4 shadow-md">
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                  <span className="hidden xl:inline text-[15px] truncate">{item.name}</span>
-                </div>
-              </Link>
-            );
-          })}
+                  if (item.isProfile) {
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href!}
+                        className={`flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-sm transition-all border ${
+                          item.isActive
+                            ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-xs'
+                            : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
+                        } active:scale-98`}
+                        aria-label="Profile"
+                      >
+                        <div className="shrink-0">
+                          {mounted && currentUser ? (
+                            <div
+                              className={`rounded-full p-[1.5px] transition-transform ${
+                                item.isActive ? 'ring-2 ring-[var(--accent-blue)]' : ''
+                              }`}
+                            >
+                              <Avatar src={currentUser.avatarUrl} alt={currentUser.displayName} size="xs" />
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-neutral-300 dark:bg-neutral-700" />
+                          )}
+                        </div>
+                        <span className="hidden xl:inline text-[14px] truncate">
+                          {mounted && currentUser ? 'Profile' : 'Log In'}
+                        </span>
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href!}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-2xl text-sm transition-all border ${
+                        item.isActive
+                          ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-xs'
+                          : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
+                      } active:scale-98`}
+                      aria-label={item.name}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="relative shrink-0 group-hover:scale-105 transition-transform">
+                          {Icon && (
+                            <Icon
+                              className={`w-5 h-5 stroke-[1.75] ${
+                                item.isActive ? 'fill-current text-[var(--accent-blue)]' : 'text-[var(--text-primary)]'
+                              }`}
+                            />
+                          )}
+                          {item.badge !== undefined && (
+                            <span className="absolute -top-1 -right-1.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#ff3040] text-white flex items-center justify-center min-w-[16px] h-4 shadow-md">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                        <span className="hidden xl:inline text-[14px] truncate">{item.name}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </div>
 

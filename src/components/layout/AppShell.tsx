@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
 import { Header } from './Header';
+import { OfflineBanner } from '../ui/OfflineBanner';
 import { useStory } from '@/context/StoryContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -82,6 +83,9 @@ export function AppShell({ children, title }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] relative overflow-x-hidden flex selection:bg-[var(--accent-blue)]/25">
+      {/* Offline Connectivity Status Banner */}
+      <OfflineBanner />
+
       {/* Dynamic Ambient Background Gradient Orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {/* Orb 1: Top-Left Ambient */}
