@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { sounds, triggerConfetti } from '@/lib/utils';
 import { Eye, EyeOff, Lock, Mail, User, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function AuthPage() {
@@ -63,8 +62,6 @@ export default function AuthPage() {
 
     try {
       await login(emailOrUsername.trim(), password);
-      sounds.playSend();
-      triggerConfetti(0.5, 0.5);
       router.push('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Sign in failed. Please check your credentials.');
@@ -85,8 +82,6 @@ export default function AuthPage() {
         signupUsername.trim(),
         signupFullName.trim()
       );
-      sounds.playSend();
-      triggerConfetti(0.5, 0.5);
       router.push('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed. Please verify your details.');
@@ -101,8 +96,6 @@ export default function AuthPage() {
     try {
       const success = await loginWithGoogle();
       if (success) {
-        sounds.playSend();
-        triggerConfetti(0.5, 0.5);
         router.push('/');
       }
     } catch (err: unknown) {
