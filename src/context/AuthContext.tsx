@@ -636,7 +636,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return loginWithGoogle(fbUser.email, fbUser.displayName || undefined, fbUser.photoURL || undefined);
         }
       } catch (err: unknown) {
-        throw new Error(err instanceof Error ? err.message : 'Google sign-in was cancelled or failed.');
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('popup-closed-by-user')) {
+          return false;
+        }
+        if (msg.includes('operation-not-allowed') || msg.includes('auth/operation-not-allowed')) {
+          throw new Error('Google Sign-In is not enabled yet in your Firebase Console. Please enable "Google" under Firebase Authentication > Sign-in method.');
+        }
+        if (msg.includes('unauthorized-domain') || msg.includes('auth/unauthorized-domain')) {
+          throw new Error('Domain not authorized in Firebase. Please add this domain to Authorized Domains in Firebase Console.');
+        }
+        throw new Error(msg || 'Google sign-in failed.');
       }
     }
 
