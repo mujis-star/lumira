@@ -407,7 +407,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Invalid credentials';
-        throw new Error(msg.includes('user-not-found') ? 'No account found with this email. Please sign up.' : msg.includes('wrong-password') ? 'Incorrect password. Please try again.' : msg);
+        if (msg.includes('operation-not-allowed') || msg.includes('auth/operation-not-allowed')) {
+          console.warn('Firebase Email/Password is not enabled in console. Proceeding with database verification.');
+        } else {
+          // Check local credentials first
+          const query = emailOrUsername.trim().toLowerCase();
+          const found = users.find(
+            (u) =>
+              u.email?.toLowerCase() === query ||
+              u.username.toLowerCase() === query
+          );
+          if (found) {
+            const expectedPassword = credentials[found.id] || DEFAULT_SEED_PASSWORD;
+            if (pass === expectedPassword) {
+              setCurrentUser(found);
+              rememberAccount(found.id);
+              persistUsers(users, found);
+              return true;
+            }
+          }
+          throw new Error(
+            msg.includes('user-not-found')
+              ? 'No account found with this email. Please sign up.'
+              : msg.includes('wrong-password') || msg.includes('invalid-credential')
+              ? 'Incorrect password. Please try again.'
+              : msg
+          );
+        }
       }
     }
 
@@ -479,24 +505,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanUsername}`,
           bio: 'Visual storyteller exploring Lumira ✦',
           followersCount: 0,
-          followingCount: 2,
+          followingCount: 0,
           postsCount: 0,
           sparksCount: 200,
           followers: [],
-          following: ['user-admin', 'user-elena', 'user-marcus'],
+          following: [],
           createdAt: new Date().toISOString(),
         };
         const updated = [newUser, ...users];
+        const updatedCreds = { ...credentials, [newUser.id]: pass };
+        persistCredentials(updatedCreds);
         setCurrentUser(newUser);
         rememberAccount(newUser.id);
         persistUsers(updated, newUser);
         return true;
       } catch (err: unknown) {
-        throw new Error(err instanceof Error ? err.message : 'Registration failed.');
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('operation-not-allowed') || msg.includes('auth/operation-not-allowed')) {
+          console.warn('Firebase Email/Password provider is disabled in console. Falling back to Firestore user creation.');
+        } else if (msg.includes('email-already-in-use')) {
+          throw new Error('An account with this email already exists. Please log in.');
+        } else {
+          throw new Error(msg || 'Registration failed.');
+        }
       }
     }
 
-    // Local secure user creation
+    // Local / Firestore secure user creation
     const newUserId = generateId('user');
     const newUser: UserProfile = {
       id: newUserId,
@@ -507,11 +542,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       bio: 'Visual storyteller exploring Lumira ✦',
       website: `https://lumira.app/${cleanUsername}`,
       followersCount: 0,
-      followingCount: 3,
+      followingCount: 0,
       postsCount: 0,
       sparksCount: 200,
       followers: [],
-      following: ['user-admin', 'user-elena', 'user-marcus'],
+      following: [],
       createdAt: new Date().toISOString(),
     };
 
