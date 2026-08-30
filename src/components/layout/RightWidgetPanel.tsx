@@ -2,301 +2,274 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '../ui/Avatar';
-import { Modal } from '../ui/Modal';
-import { useIsMounted } from '@/lib/useIsMounted';
-import { Check, Plus } from 'lucide-react';
+import { Plus, X, Play, Hash } from 'lucide-react';
 
-export function RightWidgetPanel() {
-  const router = useRouter();
-  const { currentUser, allUsers, savedAccounts, toggleFollow, isFollowing, switchPersona } = useAuth();
-  const mounted = useIsMounted();
-  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
-  const [isSuggestedModalOpen, setIsSuggestedModalOpen] = useState(false);
-  const [suggestedSearch, setSuggestedSearch] = useState('');
+interface RightWidgetPanelProps {
+  onCreateClick?: () => void;
+}
 
-  // Clean and deduplicate suggestions list
-  const cleanSuggestions = React.useMemo(() => {
-    const seen = new Set<string>();
-    const list: typeof allUsers = [];
+const DEFAULT_SUGGESTIONS = [
+  {
+    id: 'elena',
+    username: 'elena.rodriguez',
+    displayName: 'Elena Rodriguez',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 'james',
+    username: 'james.walker',
+    displayName: 'James Walker',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 'olivia',
+    username: 'olivia.gray',
+    displayName: 'Olivia Gray',
+    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 'noah',
+    username: 'noah.adams',
+    displayName: 'Noah Adams',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+  },
+  {
+    id: 'sophia',
+    username: 'sophia.brown',
+    displayName: 'Sophia Brown',
+    avatarUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
+  },
+];
 
-    for (const u of allUsers) {
-      if (!u || !u.username) continue;
-      const uname = u.username.toLowerCase();
-      // Exclude currentUser
-      if (
-        currentUser &&
-        (u.id === currentUser.id ||
-          uname === currentUser.username.toLowerCase())
-      ) {
-        continue;
-      }
-      if (!seen.has(uname)) {
-        seen.add(uname);
-        list.push(u);
-      }
+const TRENDING_TOPICS = [
+  { tag: 'LumiraVibes', posts: '12.8k posts' },
+  { tag: 'SunsetLovers', posts: '8.4k posts' },
+  { tag: 'TravelDiaries', posts: '6.7k posts' },
+  { tag: 'GoodVibesOnly', posts: '5.3k posts' },
+];
+
+const MUSIC_TRACKS = [
+  {
+    id: '1',
+    title: 'Golden Hour',
+    artist: 'JVKE',
+    cover: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=120&q=80',
+  },
+  {
+    id: '2',
+    title: 'Feather',
+    artist: 'Sabrina Carpenter',
+    cover: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
+  },
+  {
+    id: '3',
+    title: 'Calm Down',
+    artist: 'Rema & Selena Gomez',
+    cover: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=120&q=80',
+  },
+  {
+    id: '4',
+    title: 'Daylight',
+    artist: 'David Kushner',
+    cover: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=120&q=80',
+  },
+];
+
+export function RightWidgetPanel({ onCreateClick }: RightWidgetPanelProps) {
+  const { allUsers, toggleFollow, isFollowing } = useAuth();
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
+
+  const suggestions = React.useMemo(() => {
+    if (allUsers && allUsers.length > 3) {
+      return allUsers.slice(0, 5).map((u) => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        avatarUrl: u.avatarUrl,
+      }));
     }
-    return list;
-  }, [allUsers, currentUser]);
+    return DEFAULT_SUGGESTIONS;
+  }, [allUsers]);
 
-  const suggestedUsers = cleanSuggestions.slice(0, 5);
+  const visibleSuggestions = suggestions.filter((s) => !dismissedIds.includes(s.id));
 
-  const allSuggestedModalUsers = React.useMemo(() => {
-    if (!suggestedSearch.trim()) return cleanSuggestions;
-    const q = suggestedSearch.toLowerCase().trim();
-    return cleanSuggestions.filter(
-      (u) =>
-        u.username.toLowerCase().includes(q) ||
-        u.displayName.toLowerCase().includes(q) ||
-        (u.bio && u.bio.toLowerCase().includes(q))
-    );
-  }, [cleanSuggestions, suggestedSearch]);
+  const handleToggle = (id: string) => {
+    setFollowingMap((prev) => ({ ...prev, [id]: !prev[id] }));
+    toggleFollow(id);
+  };
+
+  const handleDismiss = (id: string) => {
+    setDismissedIds((prev) => [...prev, id]);
+  };
 
   return (
-    <aside className="w-[320px] shrink-0 hidden xl:block select-none text-xs text-[var(--text-secondary)]">
-      {/* Frosted Glass Suggested Card Container */}
-      <div className="bg-[var(--glass-card-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] rounded-3xl p-5 mb-5 transition-all hover:border-[var(--glass-border-highlight)]">
-        {/* Current User Row */}
-        {mounted && currentUser && (
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--glass-border-subtle)]">
-            <Link
-              href={`/profile/${currentUser.username}`}
-              className="flex items-center gap-3 min-w-0 group flex-1"
-            >
-              <Avatar src={currentUser.avatarUrl} alt={currentUser.displayName} size="md" isVerified={currentUser.isVerified} />
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-blue)] transition-colors">
-                  {currentUser.username}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] truncate">
-                  {currentUser.displayName}
-                </p>
-              </div>
-            </Link>
+    <aside className="w-[310px] shrink-0 hidden xl:flex flex-col gap-4 select-none text-xs">
+      {/* 1. Create Card */}
+      <div className="bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-xl rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-white">Create</h3>
+          <p className="text-xs text-neutral-400">Share a moment</p>
+        </div>
+        <button
+          type="button"
+          onClick={onCreateClick}
+          className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#8b5cf6] to-[#6366f1] hover:from-[#7c3aed] hover:to-[#4f46e5] text-white flex items-center justify-center shadow-lg shadow-purple-500/25 active:scale-95 transition-all cursor-pointer"
+          aria-label="Create new post"
+        >
+          <Plus className="w-5 h-5 stroke-[2.5]" />
+        </button>
+      </div>
 
-            <button
-              onClick={() => setIsSwitchModalOpen(true)}
-              className="text-xs font-bold text-[var(--accent-blue)] hover:text-[var(--accent-blue-hover)] cursor-pointer shrink-0 ml-2 px-2.5 py-1 rounded-xl bg-[var(--accent-blue)]/10 hover:bg-[var(--accent-blue)]/20 transition-colors active:scale-95"
-            >
-              Switch
-            </button>
-          </div>
-        )}
-
-        {/* Suggested For You Header */}
-        <div className="flex items-center justify-between mb-3.5">
-          <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-            Suggested for you
-          </span>
-          <button
-            type="button"
-            onClick={() => setIsSuggestedModalOpen(true)}
-            className="text-xs font-bold text-[var(--accent-blue)] hover:text-[var(--accent-blue-hover)] cursor-pointer hover:underline transition-opacity"
-          >
-            See All
-          </button>
+      {/* 2. Suggested for you Card */}
+      <div className="bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-xl rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-bold text-neutral-300">Suggested for you</span>
+          <Link href="/explore" className="text-[11px] font-semibold text-[#0095f6] hover:underline">
+            See all
+          </Link>
         </div>
 
-        {/* Suggested Users List */}
         <div className="space-y-3">
-          {suggestedUsers.map((user) => {
-            const following = isFollowing(user.id);
+          {visibleSuggestions.map((user) => {
+            const isUserFollowing = followingMap[user.id] ?? isFollowing(user.id);
 
             return (
-              <div key={user.id} className="flex items-center justify-between group/user">
+              <div key={user.id} className="flex items-center justify-between gap-2">
                 <Link
                   href={`/profile/${user.username}`}
-                  className="flex items-center gap-3 min-w-0 flex-1"
+                  className="flex items-center gap-2.5 min-w-0 flex-1 group"
                 >
-                  <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" isVerified={user.isVerified} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover/user:text-[var(--accent-blue)] transition-colors">
+                  <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">
                       {user.username}
                     </p>
-                    <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                      Suggested for you
-                    </p>
+                    <p className="text-[10px] text-neutral-400 truncate">{user.displayName}</p>
                   </div>
                 </Link>
 
-                <button
-                  onClick={() => toggleFollow(user.id)}
-                  className={`text-xs font-bold cursor-pointer shrink-0 ml-2 px-2.5 py-1 rounded-xl transition-all active:scale-95 ${
-                    following
-                      ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] border border-[var(--glass-border-subtle)]'
-                      : 'bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)] shadow-xs'
-                  }`}
-                >
-                  {following ? 'Following' : 'Follow'}
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(user.id)}
+                    className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                      isUserFollowing
+                        ? 'bg-white/10 text-neutral-300 hover:bg-white/15'
+                        : 'bg-white/10 hover:bg-white/20 text-white'
+                    }`}
+                  >
+                    {isUserFollowing ? 'Following' : 'Follow'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDismiss(user.id)}
+                    className="text-neutral-500 hover:text-neutral-300 p-0.5 cursor-pointer"
+                    aria-label="Dismiss suggestion"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Suggested for You Modal (Opens on 'See All') */}
-      <Modal
-        isOpen={isSuggestedModalOpen}
-        onClose={() => {
-          setIsSuggestedModalOpen(false);
-          setSuggestedSearch('');
-        }}
-        title="Suggested for You"
-        size="md"
-      >
-        <div className="p-4 space-y-4 max-h-[75vh] flex flex-col">
-          {/* Modal Search Bar */}
-          <div className="relative shrink-0">
-            <input
-              type="text"
-              value={suggestedSearch}
-              onChange={(e) => setSuggestedSearch(e.target.value)}
-              placeholder="Search creators to follow..."
-              className="w-full px-4 py-2.5 rounded-2xl bg-[var(--glass-input-bg)] backdrop-blur-md border border-[var(--glass-border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-blue)] transition-colors"
-            />
-          </div>
-
-          {/* Accounts List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[var(--glass-border-subtle)] space-y-1 pr-1">
-            {allSuggestedModalUsers.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[var(--text-secondary)]">
-                No accounts found matching &ldquo;{suggestedSearch}&rdquo;
-              </div>
-            ) : (
-              allSuggestedModalUsers.map((user) => {
-                const following = isFollowing(user.id);
-
-                return (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between p-3 rounded-2xl hover:bg-[var(--glass-bg-hover)] transition-colors"
-                  >
-                    <Link
-                      href={`/profile/${user.username}`}
-                      onClick={() => setIsSuggestedModalOpen(false)}
-                      className="flex items-center gap-3 min-w-0 flex-1"
-                    >
-                      <Avatar src={user.avatarUrl} alt={user.displayName} size="md" isVerified={user.isVerified} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-[var(--text-primary)] truncate hover:text-[var(--accent-blue)] transition-colors">
-                          {user.username}
-                        </p>
-                        <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                          {user.displayName}
-                        </p>
-                        {user.bio && (
-                          <p className="text-[10px] text-[var(--text-secondary)] opacity-75 truncate mt-0.5">
-                            {user.bio}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-
-                    <button
-                      type="button"
-                      onClick={() => toggleFollow(user.id)}
-                      className={`text-xs font-bold cursor-pointer shrink-0 ml-3 px-4 py-1.5 rounded-xl transition-all active:scale-95 ${
-                        following
-                          ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] border border-[var(--glass-border)] hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30'
-                          : 'bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)] shadow-sm'
-                      }`}
-                    >
-                      {following ? 'Following' : 'Follow'}
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
+      {/* 3. Trending now Card */}
+      <div className="bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-xl rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-bold text-neutral-300">Trending now</span>
+          <Link href="/explore" className="text-[11px] font-semibold text-[#0095f6] hover:underline">
+            See all
+          </Link>
         </div>
-      </Modal>
 
-      {/* Lumira Footer Links */}
-      <div className="px-3 space-y-2 text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-        <nav className="flex flex-wrap gap-x-1.5 gap-y-1">
-          <Link href="/explore" className="hover:underline">About</Link> •
-          <Link href="/explore" className="hover:underline">Help</Link> •
-          <Link href="/explore" className="hover:underline">Press</Link> •
-          <Link href="/explore" className="hover:underline">API</Link> •
-          <Link href="/explore" className="hover:underline">Jobs</Link> •
-          <Link href="/explore" className="hover:underline">Privacy</Link> •
-          <Link href="/explore" className="hover:underline">Terms</Link> •
-          <Link href="/explore" className="hover:underline">Locations</Link> •
-          <Link href="/explore" className="hover:underline">Language</Link>
-        </nav>
-        <p className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">
-          © 2026 LUMIRA — WHERE MOMENTS ILLUMINATE
-        </p>
+        <div className="space-y-2.5">
+          {TRENDING_TOPICS.map((topic) => (
+            <Link
+              key={topic.tag}
+              href={`/search?q=${encodeURIComponent(topic.tag)}`}
+              className="flex items-start gap-2.5 p-1 -mx-1 rounded-lg hover:bg-white/5 transition-colors group"
+            >
+              <div className="text-neutral-400 group-hover:text-white mt-0.5">
+                <Hash className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-white group-hover:text-purple-300 transition-colors truncate">
+                  {topic.tag}
+                </p>
+                <p className="text-[10px] text-neutral-400">{topic.posts}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* Switch Accounts Modal */}
-      <Modal
-        isOpen={isSwitchModalOpen}
-        onClose={() => setIsSwitchModalOpen(false)}
-        title="Switch accounts"
-        size="sm"
-      >
-        <div className="p-3 divide-y divide-[var(--glass-border-subtle)]">
-          <div className="max-h-64 overflow-y-auto py-1 space-y-1">
-            {savedAccounts.map((user) => {
-              const isSelected = user.id === currentUser?.id;
-
-              return (
-                <div
-                  key={user.id}
-                  onClick={() => {
-                    switchPersona(user.id);
-                    setIsSwitchModalOpen(false);
-                  }}
-                  className={`flex items-center justify-between p-2.5 rounded-2xl transition-colors cursor-pointer ${
-                    isSelected
-                      ? 'bg-[var(--accent-blue)]/15 border border-[var(--accent-blue)]/30'
-                      : 'hover:bg-[var(--glass-bg-hover)]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" isVerified={user.isVerified} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-bold text-[var(--text-primary)] truncate">{user.username}</p>
-                        {user.isAdmin && (
-                          <span className="px-1.5 py-0.2 rounded-md bg-[#0095f6]/15 text-[#0095f6] text-[9px] font-bold">
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-[var(--text-secondary)] truncate">{user.displayName}</p>
-                    </div>
-                  </div>
-
-                  {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-[#0095f6] flex items-center justify-center text-white shrink-0 shadow-sm">
-                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="pt-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSwitchModalOpen(false);
-                router.push('/auth');
-              }}
-              className="w-full py-2.5 px-3 rounded-2xl hover:bg-[var(--glass-bg-hover)] text-xs font-bold text-[#0095f6] flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[var(--glass-border-subtle)]"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Log into an Existing Account</span>
-            </button>
-          </div>
+      {/* 4. Music for you Card */}
+      <div className="bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-xl rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-bold text-neutral-300">Music for you</span>
+          <Link href="/explore" className="text-[11px] font-semibold text-[#0095f6] hover:underline">
+            See all
+          </Link>
         </div>
-      </Modal>
+
+        <div className="space-y-2.5">
+          {MUSIC_TRACKS.map((track) => (
+            <div key={track.id} className="flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 ring-1 ring-white/10">
+                  <Image
+                    src={track.cover}
+                    alt={track.title}
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-white truncate">{track.title}</p>
+                  <p className="text-[10px] text-neutral-400 truncate">{track.artist}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-neutral-300 hover:text-white flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+                aria-label={`Play ${track.title}`}
+              >
+                <Play className="w-3 h-3 fill-current ml-0.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. Small Footer Card */}
+      <div className="px-2 py-1 text-[11px] text-neutral-500 space-y-1.5">
+        <div className="flex flex-wrap gap-x-2 gap-y-1">
+          <a href="#" className="hover:underline">About</a>
+          <span>•</span>
+          <a href="#" className="hover:underline">Help</a>
+          <span>•</span>
+          <a href="#" className="hover:underline">Terms</a>
+          <span>•</span>
+          <a href="#" className="hover:underline">Privacy</a>
+        </div>
+        <div className="flex flex-wrap gap-x-2 gap-y-1">
+          <a href="#" className="hover:underline">Community Guidelines</a>
+          <span>•</span>
+          <a href="#" className="hover:underline">Cookies</a>
+        </div>
+        <p className="pt-1 text-[10px] text-neutral-600">
+          © 2026 Lumira. All rights reserved.
+        </p>
+      </div>
     </aside>
   );
 }
+

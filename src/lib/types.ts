@@ -138,6 +138,7 @@ export interface Post {
   isPrivate: boolean;
   createdAt: string;
   pinned?: boolean;
+  isReel?: boolean;
 }
 
 export interface ReelItem {

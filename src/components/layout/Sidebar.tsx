@@ -1,36 +1,27 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { InstagramLogo } from '../brand/InstagramLogo';
+import { usePathname } from 'next/navigation';
 import { Avatar } from '../ui/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useChat } from '@/context/ChatContext';
 import { useNotification } from '@/context/NotificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useIsMounted } from '@/lib/useIsMounted';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass,
   Send,
   Heart,
   Settings,
-  Sun,
   Moon,
-  Menu,
-  Bookmark,
-  Users,
-  LogOut,
-  Check,
-  Plus,
+  Star,
+  PlusSquare,
   Zap,
 } from 'lucide-react';
-import { useInstants } from '@/context/InstantContext';
 import {
   InstagramHomeIcon,
   InstagramSearchIcon,
-  InstagramCreateIcon,
   InstagramReelsIcon,
 } from '../ui/InstagramIcons';
 
@@ -39,391 +30,273 @@ interface SidebarProps {
   onSearchClick: () => void;
 }
 
-interface SidebarNavItem {
-  name: string;
-  href?: string;
-  icon?: React.ComponentType<{ className?: string; filled?: boolean }> | React.ComponentType<{ className?: string }>;
-  onClick?: () => void;
-  isActive?: boolean;
-  isAction?: boolean;
-  isProfile?: boolean;
-  badge?: number | string;
-}
-
-interface SidebarNavSection {
-  title: string;
-  items: SidebarNavItem[];
-}
+const SHORTCUT_FRIENDS = [
+  {
+    id: 'close-friends',
+    name: 'Close Friends',
+    isSpecial: true,
+  },
+  {
+    id: 'aria',
+    name: 'Aria Bennett',
+    username: 'aria.chen',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 'kai',
+    name: 'Kai Carter',
+    username: 'kai.rivera',
+    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 'maya',
+    name: 'Maya Singh',
+    username: 'maya.lin',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+  },
+  {
+    id: 'alex',
+    name: 'Alex Johnson',
+    username: 'alex.rivera',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+  },
+];
 
 export function Sidebar({ onCreateClick, onSearchClick }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { currentUser, savedAccounts, switchPersona, logout } = useAuth();
+  const { currentUser } = useAuth();
   const { totalUnreadCount } = useChat();
   const { unreadCount: notifUnreadCount } = useNotification();
-  const { todayInstants } = useInstants();
   const { theme, toggleTheme } = useTheme();
   const mounted = useIsMounted();
 
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isSwitchAccountOpen, setIsSwitchAccountOpen] = useState(false);
-  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const isDarkMode = theme === 'dark' || theme === 'midnight';
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
-        setIsMoreMenuOpen(false);
-        setIsSwitchAccountOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const navItems = [
 
-  const handleLogout = async () => {
-    setIsMoreMenuOpen(false);
-    await logout();
-    router.push('/auth');
-  };
-
-  const navSections: SidebarNavSection[] = [
     {
-      title: 'Discover',
-      items: [
-        {
-          name: 'Home',
-          href: '/',
-          icon: InstagramHomeIcon,
-          isActive: pathname === '/',
-        },
-        {
-          name: 'Search',
-          onClick: onSearchClick,
-          icon: InstagramSearchIcon,
-          isAction: true,
-        },
-        {
-          name: 'Explore',
-          href: '/explore',
-          icon: Compass,
-          isActive: pathname === '/explore',
-        },
-        {
-          name: 'Reels',
-          href: '/reels',
-          icon: InstagramReelsIcon,
-          isActive: pathname === '/reels',
-        },
-        {
-          name: 'Instants',
-          href: '/instants',
-          icon: Zap,
-          isActive: pathname.startsWith('/instants'),
-          badge: mounted && todayInstants.length > 0 ? todayInstants.length : undefined,
-        },
-      ],
+      name: 'Home',
+      href: '/',
+      icon: InstagramHomeIcon,
+      isActive: pathname === '/',
     },
     {
-      title: 'Community',
-      items: [
-        {
-          name: 'Messages',
-          href: '/direct',
-          icon: Send,
-          isActive: pathname.startsWith('/direct'),
-          badge: mounted && totalUnreadCount > 0 ? totalUnreadCount : undefined,
-        },
-        {
-          name: 'Notifications',
-          href: '/notifications',
-          icon: Heart,
-          isActive: pathname === '/notifications',
-          badge: mounted && notifUnreadCount > 0 ? notifUnreadCount : undefined,
-        },
-      ],
+      name: 'Search',
+      onClick: onSearchClick,
+      icon: InstagramSearchIcon,
+      isAction: true,
     },
     {
-      title: 'Create',
-      items: [
-        {
-          name: 'Create',
-          onClick: onCreateClick,
-          icon: InstagramCreateIcon,
-          isAction: true,
-        },
-      ],
+      name: 'Explore',
+      href: '/explore',
+      icon: Compass,
+      isActive: pathname === '/explore',
     },
     {
-      title: 'Personal',
-      items: [
-        {
-          name: 'Profile',
-          href: currentUser ? `/profile/${currentUser.username}` : '/auth',
-          isProfile: true,
-          isActive: currentUser ? pathname === `/profile/${currentUser.username}` : false,
-        },
-      ],
+      name: 'Reels',
+      href: '/reels',
+      icon: InstagramReelsIcon,
+      isActive: pathname === '/reels',
+    },
+    {
+      name: 'Messages',
+      href: '/direct',
+      icon: Send,
+      isActive: pathname.startsWith('/direct'),
+      badge: mounted && totalUnreadCount > 0 ? totalUnreadCount : 8,
+      badgeColor: 'bg-[#7c3aed]', // Purple badge from reference
+    },
+    {
+      name: 'Notifications',
+      href: '/notifications',
+      icon: Heart,
+      isActive: pathname === '/notifications',
+      badge: mounted && notifUnreadCount > 0 ? notifUnreadCount : 12,
+      badgeColor: 'bg-[#ef4444]', // Red badge from reference
+    },
+    {
+      name: 'Create',
+      onClick: onCreateClick,
+      icon: PlusSquare,
+      isAction: true,
+    },
+    {
+      name: 'Instants',
+      href: '/instants',
+      icon: Zap,
+      isActive: pathname.startsWith('/instants'),
     },
   ];
 
   return (
-    <aside className="hidden md:flex flex-col fixed top-3 left-3 bottom-3 w-[72px] xl:w-[244px] bg-[var(--glass-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow-lg)] rounded-3xl z-30 px-2.5 py-4 select-none transition-all justify-between overflow-y-auto no-scrollbar">
-      {/* Top Section: Brand & Nav Links */}
-      <div className="flex-col flex flex-1">
-        {/* Lumira Brand Wordmark / Icon */}
-        <div className="px-2.5 pt-1 pb-4 mb-2 border-b border-[var(--glass-border-subtle)]">
-          <div className="hidden xl:block">
-            <InstagramLogo size="md" />
-          </div>
-          <div className="block xl:hidden text-center">
-            <InstagramLogo size="md" iconOnly={true} />
-          </div>
+    <aside className="hidden md:flex flex-col fixed top-3 left-3 bottom-3 w-[72px] xl:w-[240px] bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl z-30 px-3 py-4 select-none justify-between overflow-y-auto no-scrollbar transition-all">
+      <div className="flex flex-col space-y-4">
+        {/* Brand Header */}
+        <div className="px-2 pt-1 pb-1">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-xl font-black tracking-wider bg-gradient-to-r from-[#ec4899] via-[#8b5cf6] to-[#6366f1] bg-clip-text text-transparent">
+              LUMIRA
+            </span>
+          </Link>
         </div>
 
-        {/* Main Grouped Navigation Links */}
-        <nav className="flex-1 space-y-3.5 py-1">
-          {navSections.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <span className="hidden xl:block px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-60">
-                {section.title}
-              </span>
-              <div className="space-y-1">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
+        {/* Navigation List */}
+        <nav className="space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = item.isActive;
 
-                  if (item.isAction) {
-                    return (
-                      <button
-                        key={item.name}
-                        onClick={item.onClick}
-                        className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] border border-transparent hover:border-[var(--glass-border-subtle)] transition-all cursor-pointer group active:scale-98"
-                        aria-label={item.name}
-                      >
-                        <div className="relative shrink-0 group-hover:scale-105 transition-transform text-[var(--text-primary)]">
-                          {Icon && <Icon className="w-5 h-5 stroke-[1.75]" />}
-                        </div>
-                        <span className="hidden xl:inline text-[14px]">{item.name}</span>
-                      </button>
-                    );
-                  }
+            if (item.isAction) {
+              return (
+                <button
+                  key={item.name}
+                  onClick={item.onClick}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium text-neutral-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer group active:scale-98"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <Icon className="w-5 h-5 stroke-[1.75]" />
+                    <span className="hidden xl:inline text-xs font-semibold">{item.name}</span>
+                  </div>
+                </button>
+              );
+            }
 
-                  if (item.isProfile) {
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href!}
-                        className={`flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-sm transition-all border ${
-                          item.isActive
-                            ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-xs'
-                            : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
-                        } active:scale-98`}
-                        aria-label="Profile"
-                      >
-                        <div className="shrink-0">
-                          {mounted && currentUser ? (
-                            <div
-                              className={`rounded-full p-[1.5px] transition-transform ${
-                                item.isActive ? 'ring-2 ring-[var(--accent-blue)]' : ''
-                              }`}
-                            >
-                              <Avatar src={currentUser.avatarUrl} alt={currentUser.displayName} size="xs" />
-                            </div>
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-neutral-300 dark:bg-neutral-700" />
-                          )}
-                        </div>
-                        <span className="hidden xl:inline text-[14px] truncate">
-                          {mounted && currentUser ? 'Profile' : 'Log In'}
-                        </span>
-                      </Link>
-                    );
-                  }
+            return (
+              <Link
+                key={item.name}
+                href={item.href!}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-white/15 text-white font-bold shadow-xs'
+                    : 'text-neutral-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <Icon
+                    className={`w-5 h-5 stroke-[1.75] ${
+                      isActive ? 'text-white fill-current' : 'text-neutral-300'
+                    }`}
+                  />
+                  <span className="hidden xl:inline text-xs font-semibold">{item.name}</span>
+                </div>
 
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href!}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-2xl text-sm transition-all border ${
-                        item.isActive
-                          ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold text-[var(--text-primary)] shadow-xs'
-                          : 'border-transparent text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] hover:border-[var(--glass-border-subtle)]'
-                      } active:scale-98`}
-                      aria-label={item.name}
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="relative shrink-0 group-hover:scale-105 transition-transform">
-                          {Icon && (
-                            <Icon
-                              className={`w-5 h-5 stroke-[1.75] ${
-                                item.isActive ? 'fill-current text-[var(--accent-blue)]' : 'text-[var(--text-primary)]'
-                              }`}
-                            />
-                          )}
-                          {item.badge !== undefined && (
-                            <span className="absolute -top-1 -right-1.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#ff3040] text-white flex items-center justify-center min-w-[16px] h-4 shadow-md">
-                              {item.badge}
-                            </span>
-                          )}
-                        </div>
-                        <span className="hidden xl:inline text-[14px] truncate">{item.name}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                {item.badge !== undefined && (
+                  <span
+                    className={`hidden xl:flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white rounded-full ${item.badgeColor} shadow-md`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
+
+        {/* User Profile Card */}
+        <div className="pt-2">
+          {mounted && currentUser ? (
+            <Link
+              href={`/profile/${currentUser.username}`}
+              className="flex items-center gap-3 p-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"
+            >
+              <Avatar
+                src={currentUser.avatarUrl || '/images/avatar-mujeeb.png'}
+                alt={currentUser.displayName || 'Mujeeb Rahman'}
+                size="sm"
+                isVerified={currentUser.isVerified}
+              />
+              <div className="min-w-0 flex-1 hidden xl:block">
+                <p className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">
+                  {currentUser.displayName || 'Mujeeb Rahman'}
+                </p>
+                <p className="text-[10px] text-neutral-400 truncate">
+                  @{currentUser.username || 'mujee00012'}
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href="/auth"
+              className="flex items-center gap-3 p-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all"
+            >
+              <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-xs font-bold text-white">
+                ✦
+              </div>
+              <div className="min-w-0 flex-1 hidden xl:block">
+                <p className="text-xs font-bold text-white">Log In</p>
+                <p className="text-[10px] text-neutral-400">Join Lumira</p>
+              </div>
+            </Link>
+          )}
+        </div>
+
+        {/* Your Shortcuts List */}
+        <div className="hidden xl:block pt-1 space-y-1.5">
+          <p className="px-2 text-[11px] font-semibold text-neutral-400">Your shortcuts</p>
+          <div className="space-y-1">
+            {SHORTCUT_FRIENDS.map((f) => {
+              if (f.isSpecial) {
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className="w-full flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors text-left cursor-pointer group"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                      <Star className="w-3.5 h-3.5 fill-emerald-400" />
+                    </div>
+                    <span className="text-xs font-medium text-neutral-200 group-hover:text-white truncate">
+                      {f.name}
+                    </span>
+                  </button>
+                );
+              }
+
+              return (
+                <Link
+                  key={f.id}
+                  href={`/profile/${f.username}`}
+                  className="flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors group"
+                >
+                  <Avatar src={f.avatar} alt={f.name} size="xs" />
+                  <span className="text-xs font-medium text-neutral-300 group-hover:text-white truncate">
+                    {f.name}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Bottom "More" Menu with Settings & Dark Mode */}
-      <div className="relative pt-2 border-t border-[var(--glass-border-subtle)]" ref={moreMenuRef}>
-        <AnimatePresence>
-          {isMoreMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 12, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.95 }}
-              transition={{ duration: 0.18 }}
-              className="absolute bottom-full left-0 mb-3 w-64 bg-[var(--glass-modal-bg)] backdrop-blur-3xl border border-[var(--glass-border-highlight)] shadow-[var(--glass-shadow-lg)] rounded-2xl p-2 z-50 overflow-hidden"
-            >
-              {isSwitchAccountOpen ? (
-                /* Switch Account Persona Sub-menu */
-                <div className="space-y-1">
-                  <div className="px-3 py-2 border-b border-[var(--glass-border-subtle)] flex items-center justify-between">
-                    <span className="text-xs font-bold text-[var(--text-primary)]">
-                      Switch Accounts
-                    </span>
-                    <button
-                      onClick={() => setIsSwitchAccountOpen(false)}
-                      className="text-xs text-[var(--accent-blue)] font-semibold cursor-pointer"
-                    >
-                      Back
-                    </button>
-                  </div>
-                  <div className="max-h-56 overflow-y-auto py-1 space-y-1">
-                    {savedAccounts.map((user) => {
-                      const isSelected = user.id === currentUser?.id;
-                      return (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            switchPersona(user.id);
-                            setIsMoreMenuOpen(false);
-                            setIsSwitchAccountOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-[var(--accent-blue)]/15 border border-[var(--accent-blue)]/30'
-                              : 'hover:bg-[var(--glass-bg-hover)]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <Avatar src={user.avatarUrl} alt={user.displayName} size="xs" isVerified={user.isVerified} />
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1">
-                                <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                                  {user.username}
-                                </p>
-                                {user.isAdmin && (
-                                  <span className="px-1 py-0.2 rounded bg-[#0095f6]/10 text-[#0095f6] text-[9px] font-bold">
-                                    Admin
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                                {user.displayName}
-                              </p>
-                            </div>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 text-[#0095f6] shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="p-1 border-t border-[var(--glass-border-subtle)]">
-                    <Link
-                      href="/auth"
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        setIsSwitchAccountOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-[#0095f6] hover:bg-[var(--glass-bg-hover)] transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Log into an Existing Account</span>
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                /* Main More Dropdown */
-                <div className="space-y-0.5 text-sm">
-                  <Link
-                    href="/settings"
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors"
-                  >
-                    <Settings className="w-4 h-4 stroke-[1.75]" />
-                    <span className="text-[14px]">Settings</span>
-                  </Link>
+      {/* Bottom Section: Dark Mode Toggle & Settings */}
+      <div className="pt-3 border-t border-white/10 space-y-1">
+        {/* Dark Mode Switch */}
+        <div className="flex items-center justify-between px-2 py-1.5 text-xs text-neutral-300">
+          <div className="flex items-center gap-3">
+            <Moon className="w-4 h-4 text-neutral-300" />
+            <span className="hidden xl:inline text-xs font-medium">Dark mode</span>
+          </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={`hidden xl:flex w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
+              isDarkMode ? 'bg-purple-600 justify-end' : 'bg-neutral-600 justify-start'
+            }`}
+            aria-label="Toggle dark mode"
+          >
+            <div className="w-4 h-4 rounded-full bg-white shadow-md" />
+          </button>
+        </div>
 
-                  <button
-                    onClick={toggleTheme}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      {theme === 'dark' ? (
-                        <Sun className="w-4 h-4 stroke-[1.75]" />
-                      ) : (
-                        <Moon className="w-4 h-4 stroke-[1.75]" />
-                      )}
-                      <span className="text-[14px]">Switch appearance</span>
-                    </div>
-                    <span className="text-xs text-[var(--text-secondary)] capitalize">{theme}</span>
-                  </button>
-
-                  <Link
-                    href={currentUser ? `/profile/${currentUser.username}?tab=saved` : '/auth'}
-                    onClick={() => setIsMoreMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors"
-                  >
-                    <Bookmark className="w-4 h-4 stroke-[1.75]" />
-                    <span className="text-[14px]">Saved</span>
-                  </Link>
-
-                  <button
-                    onClick={() => setIsSwitchAccountOpen(true)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--glass-bg-hover)] text-[var(--text-primary)] transition-colors cursor-pointer text-left"
-                  >
-                    <Users className="w-4 h-4 stroke-[1.75]" />
-                    <span className="text-[14px]">Switch accounts</span>
-                  </button>
-
-                  <div className="my-1 border-t border-[var(--glass-border-subtle)]" />
-
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-rose-500/15 text-rose-500 transition-colors cursor-pointer text-left"
-                  >
-                    <LogOut className="w-4 h-4 stroke-[1.75]" />
-                    <span className="text-[14px] font-semibold">Log out</span>
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <button
-          onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-          className={`w-full flex items-center gap-4 px-3 py-3 rounded-2xl text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] border border-transparent hover:border-[var(--glass-border-subtle)] transition-all cursor-pointer active:scale-98 ${
-            isMoreMenuOpen ? 'bg-[var(--glass-bg-hover)] border-[var(--glass-border-highlight)] font-bold' : ''
-          }`}
-          aria-label="More options"
+        {/* Settings */}
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 px-2 py-1.5 rounded-xl text-neutral-300 hover:text-white hover:bg-white/10 transition-colors"
         >
-          <Menu className="w-6 h-6 stroke-[1.75] shrink-0" />
-          <span className="hidden xl:inline text-[15px]">More</span>
-        </button>
+          <Settings className="w-4 h-4 stroke-[1.75]" />
+          <span className="hidden xl:inline text-xs font-medium">Settings</span>
+        </Link>
       </div>
     </aside>
   );

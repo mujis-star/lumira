@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { StoryBar } from '@/components/stories/StoryBar';
 import { PostCard } from '@/components/feed/PostCard';
@@ -20,6 +21,9 @@ import {
   Palette,
   Building2,
   TreePine,
+  Search,
+  Heart,
+  Send,
 } from 'lucide-react';
 
 type FeedTab = 'for-you' | 'following' | 'atmospheres' | 'trending';
@@ -72,22 +76,61 @@ export default function HomePage() {
 
   return (
     <AppShell title="Lumira">
-      <div className="w-full max-w-[1240px] mx-auto pt-1 sm:pt-4 px-0 sm:px-4 flex justify-center gap-8 xl:gap-12 select-none">
-        {/* Main Feed Column (Fluid: max-w-[600px]) */}
-        <div className="w-full max-w-[600px] shrink-0 space-y-4">
-          {/* Stories Carousel */}
+      <div className="w-full max-w-[1240px] mx-auto pt-1 sm:pt-2 px-0 sm:px-2 flex justify-center gap-6 select-none">
+        {/* Main Feed Column (Fluid: max-w-[620px]) */}
+        <div className="w-full max-w-[620px] shrink-0 space-y-4">
+          {/* 1. Top Header Card (Desktop & Tablet from Reference Image) */}
+          <div className="hidden md:flex w-full bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl p-3.5 items-center justify-between">
+            <h1 className="text-base font-bold text-white tracking-wide">Home</h1>
+            <div className="flex items-center gap-3">
+              {/* Search Box */}
+              <Link
+                href="/search"
+                className="relative flex items-center w-36 lg:w-48 pl-8 pr-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-neutral-300 transition-colors"
+              >
+                <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <span>Search</span>
+              </Link>
+
+              {/* Activity Heart Icon */}
+              <Link
+                href="/notifications"
+                className="relative p-1.5 text-neutral-300 hover:text-white transition-colors"
+                aria-label="Notifications"
+              >
+                <Heart className="w-4 h-4 stroke-[1.75]" />
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 rounded-full bg-[#ef4444] text-[9px] font-bold text-white flex items-center justify-center shadow-xs">
+                  12
+                </span>
+              </Link>
+
+              {/* Direct Messages Icon */}
+              <Link
+                href="/direct"
+                className="relative p-1.5 text-neutral-300 hover:text-white transition-colors"
+                aria-label="Direct Messages"
+              >
+                <Send className="w-4 h-4 stroke-[1.75]" />
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 rounded-full bg-[#7c3aed] text-[9px] font-bold text-white flex items-center justify-center shadow-xs">
+                  8
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {/* 2. Stories Carousel Card */}
           <StoryBar />
 
-          {/* Feed Channel Switcher (For You | Following | Atmospheres | Trending) */}
-          <div className="p-1.5 rounded-2xl bg-[var(--glass-card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-xs">
+          {/* 3. Feed Channel Switcher (For You | Following | Atmospheres | Trending) */}
+          <div className="p-1.5 rounded-2xl bg-[#11121a]/85 backdrop-blur-xl border border-white/10 shadow-xs">
             <div className="flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setActiveFeedTab('for-you')}
                 className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeFeedTab === 'for-you'
-                    ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] shadow-xs'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-white/15 text-white shadow-xs'
+                    : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5 text-blue-400" />
@@ -99,8 +142,8 @@ export default function HomePage() {
                 onClick={() => setActiveFeedTab('following')}
                 className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeFeedTab === 'following'
-                    ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] shadow-xs'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-white/15 text-white shadow-xs'
+                    : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <Users className="w-3.5 h-3.5 text-purple-400" />
@@ -112,8 +155,8 @@ export default function HomePage() {
                 onClick={() => setActiveFeedTab('atmospheres')}
                 className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeFeedTab === 'atmospheres'
-                    ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] shadow-xs'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-white/15 text-white shadow-xs'
+                    : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <Palette className="w-3.5 h-3.5 text-amber-400" />
@@ -125,8 +168,8 @@ export default function HomePage() {
                 onClick={() => setActiveFeedTab('trending')}
                 className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeFeedTab === 'trending'
-                    ? 'bg-[var(--glass-bg-hover)] text-[var(--text-primary)] shadow-xs'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-white/15 text-white shadow-xs'
+                    : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 <Flame className="w-3.5 h-3.5 text-rose-500" />
@@ -134,6 +177,7 @@ export default function HomePage() {
               </button>
             </div>
           </div>
+
 
           {/* Atmosphere Mood Filter Pills Bar (When in Atmosphere or For You) */}
           {(activeFeedTab === 'atmospheres' || activeFeedTab === 'for-you') && (

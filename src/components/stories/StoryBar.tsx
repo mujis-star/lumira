@@ -111,13 +111,13 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
   };
 
   return (
-    <div className="relative group/storybar w-full bg-[var(--glass-card-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] rounded-3xl py-4 mb-4 select-none overflow-hidden transition-all">
+    <div className="relative group/storybar w-full bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl py-3.5 mb-4 select-none overflow-hidden transition-all">
       {/* Left Glass Navigation Arrow */}
       {canScrollLeft && (
         <button
           type="button"
           onClick={() => handleScroll('left')}
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[var(--glass-modal-bg)] backdrop-blur-xl border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-lg flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110 active:scale-95"
+          className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-md border border-white/15 text-white shadow-lg flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110 active:scale-95"
           aria-label="Scroll stories left"
         >
           <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
@@ -129,7 +129,7 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
         <button
           type="button"
           onClick={() => handleScroll('right')}
-          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[var(--glass-modal-bg)] backdrop-blur-xl border border-[var(--glass-border-highlight)] text-[var(--text-primary)] shadow-lg flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110 active:scale-95"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-md border border-white/15 text-white shadow-lg flex items-center justify-center transition-all opacity-0 group-hover/storybar:opacity-100 cursor-pointer z-20 hover:scale-110 active:scale-95"
           aria-label="Scroll stories right"
         >
           <ChevronRight className="w-4 h-4 stroke-[2.5]" />
@@ -149,66 +149,64 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
         }`}
       >
         {/* Current User Story Item / Add Story */}
-        {currentUser && (
-          <div className="flex flex-col items-center gap-1.5 shrink-0 w-[72px]">
-            <div className="relative cursor-pointer group">
-              <div
-                onClick={() => {
-                  if (hasMoved) return;
-                  if (userStory && userStory.items.length > 0) {
-                    openStoryViewer(userStory.id);
-                  } else {
-                    handleCreate();
-                  }
-                }}
-                className="transition-transform group-hover:scale-105"
-              >
+        <div className="flex flex-col items-center gap-1.5 shrink-0 w-[64px]">
+          <div className="relative cursor-pointer group">
+            <div
+              onClick={() => {
+                if (hasMoved) return;
+                if (userStory && userStory.items.length > 0) {
+                  openStoryViewer(userStory.id);
+                } else {
+                  handleCreate();
+                }
+              }}
+              className="p-[2px] rounded-full bg-gradient-to-tr from-[#ec4899] via-[#8b5cf6] to-[#f59e0b] transition-transform group-hover:scale-105"
+            >
+              <div className="p-[2px] rounded-full bg-black">
                 <Avatar
-                  src={currentUser.avatarUrl}
-                  alt={currentUser.displayName}
-                  size="lg"
-                  hasStory={!!userStory && userStory.items.length > 0}
-                  isStorySeen={userStory ? !userStory.hasUnseen : false}
+                  src={currentUser?.avatarUrl || '/images/avatar-mujeeb.png'}
+                  alt={currentUser?.displayName || 'Your Story'}
+                  size="md"
                 />
               </div>
-
-              {/* Add Story Plus Badge */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCreate();
-                }}
-                className="absolute bottom-0 right-0 p-1.5 bg-[#0095f6] hover:bg-[#1877f2] text-white rounded-full ring-2 ring-[var(--bg-primary)] shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
-                aria-label="Add new story"
-              >
-                <Plus className="w-3 h-3 stroke-[3]" />
-              </button>
             </div>
-            <span className="text-[11px] font-medium text-[var(--text-primary)] truncate max-w-[68px] text-center">
-              Your story
-            </span>
+
+            {/* Add Story Plus Badge */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCreate();
+              }}
+              className="absolute bottom-0 right-0 p-1 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-full ring-2 ring-[#11121a] shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
+              aria-label="Add new story"
+            >
+              <Plus className="w-3 h-3 stroke-[3]" />
+            </button>
           </div>
-        )}
+          <span className="text-[11px] font-medium text-neutral-300 truncate max-w-[64px] text-center">
+            Your Story
+          </span>
+        </div>
 
         {/* Other Users' Stories */}
         {otherStories.map((story) => (
           <div
             key={story.id}
             onClick={() => handleStoryClick(story.id)}
-            className="flex flex-col items-center gap-1.5 shrink-0 w-[72px] cursor-pointer group"
+            className="flex flex-col items-center gap-1.5 shrink-0 w-[64px] cursor-pointer group"
           >
-            <div className="transition-transform group-hover:scale-105">
-              <Avatar
-                src={story.user.avatarUrl}
-                alt={story.user.displayName}
-                size="lg"
-                hasStory={true}
-                isStorySeen={!story.hasUnseen}
-              />
+            <div className="p-[2px] rounded-full bg-gradient-to-tr from-[#ec4899] via-[#8b5cf6] to-[#f59e0b] transition-transform group-hover:scale-105">
+              <div className="p-[2px] rounded-full bg-black">
+                <Avatar
+                  src={story.user.avatarUrl}
+                  alt={story.user.displayName}
+                  size="md"
+                />
+              </div>
             </div>
-            <span className="text-[11px] font-medium text-[var(--text-primary)] truncate max-w-[68px] text-center group-hover:text-[var(--accent-blue)] transition-colors">
-              {story.user.username}
+            <span className="text-[11px] font-medium text-neutral-300 truncate max-w-[64px] text-center group-hover:text-purple-300 transition-colors">
+              {story.user.displayName.split(' ')[0] || story.user.username}
             </span>
           </div>
         ))}
@@ -216,3 +214,4 @@ export function StoryBar({ onCreateStory }: StoryBarProps) {
     </div>
   );
 }
+

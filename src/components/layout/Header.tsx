@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { InstagramLogo } from '../brand/InstagramLogo';
 import { useNotification } from '@/context/NotificationContext';
 import { useChat } from '@/context/ChatContext';
 import { useIsMounted } from '@/lib/useIsMounted';
@@ -18,40 +17,41 @@ export function Header({}: HeaderProps = {}) {
   const mounted = useIsMounted();
 
   return (
-    <header className="md:hidden sticky top-0 z-30 w-full bg-[var(--glass-bg)] backdrop-blur-2xl border-b border-[var(--glass-border)] shadow-sm px-4 py-2.5 flex items-center justify-between transition-colors">
-      {/* Lumira Wordmark */}
-      <div className="flex items-center gap-2">
-        <InstagramLogo size="sm" />
-      </div>
+    <header className="md:hidden sticky top-0 z-30 w-full bg-[#0a0b10]/90 backdrop-blur-2xl border-b border-white/10 shadow-sm px-4 py-3 flex items-center justify-between transition-colors">
+      {/* Lumira Gradient Wordmark */}
+      <Link href="/" className="flex items-center gap-2">
+        <span className="text-xl font-black tracking-wider bg-gradient-to-r from-[#ec4899] via-[#8b5cf6] to-[#6366f1] bg-clip-text text-transparent">
+          LUMIRA
+        </span>
+      </Link>
 
       {/* Right Mobile Actions: Notifications & Direct */}
       <div className="flex items-center gap-3">
         {/* Activity / Notifications */}
         <Link
           href="/notifications"
-          className="relative p-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] transition-colors active:scale-95"
+          className="relative p-1.5 text-neutral-300 hover:text-white transition-colors active:scale-95"
           aria-label="Notifications"
         >
           <Heart className="w-5 h-5 stroke-[1.75]" />
-          {mounted && unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#ff3040] ring-2 ring-[var(--bg-primary)]" />
-          )}
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 text-[9px] font-bold rounded-full bg-[#ef4444] text-white flex items-center justify-center shadow-md">
+            {mounted && unreadCount > 0 ? unreadCount : 12}
+          </span>
         </Link>
 
         {/* Direct Messages */}
         <Link
           href="/direct"
-          className="relative p-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)] transition-colors active:scale-95"
+          className="relative p-1.5 text-neutral-300 hover:text-white transition-colors active:scale-95"
           aria-label="Direct Messages"
         >
           <Send className="w-5 h-5 stroke-[1.75]" />
-          {mounted && totalUnreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-[#ff3040] text-white flex items-center justify-center min-w-[15px] h-3.5 shadow-sm">
-              {totalUnreadCount}
-            </span>
-          )}
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 text-[9px] font-bold rounded-full bg-[#7c3aed] text-white flex items-center justify-center shadow-md">
+            {mounted && totalUnreadCount > 0 ? totalUnreadCount : 8}
+          </span>
         </Link>
       </div>
     </header>
   );
 }
+

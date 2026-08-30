@@ -10,6 +10,7 @@ import { PostMedia } from './PostMedia';
 import { PostActions } from './PostActions';
 import { PostMetadata } from './PostMetadata';
 import { MusicAttachment } from './MusicAttachment';
+import { Avatar } from '../ui/Avatar';
 
 const CommentsDrawer = dynamic(
   () => import('./CommentsDrawer').then((m) => m.CommentsDrawer),
@@ -61,7 +62,7 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <article className="w-full rounded-3xl bg-[var(--glass-card-bg)] backdrop-blur-2xl border border-[var(--glass-border)] shadow-[var(--glass-shadow)] overflow-hidden transition-all hover:border-[var(--glass-border-highlight)]">
+    <article className="w-full rounded-3xl bg-[#11121a]/85 backdrop-blur-2xl border border-white/10 shadow-2xl overflow-hidden transition-all hover:border-white/20">
       {/* 1. Post Header */}
       <PostHeader
         post={post}
@@ -74,6 +75,10 @@ export function PostCard({ post }: PostCardProps) {
         media={post.media}
         showHeartPop={showHeartPop}
         onDoubleTap={handleDoubleTap}
+        isReel={post.isReel}
+        likesCount={post.likesCount}
+        commentsCount={post.commentsCount}
+        sharesCount={post.sharesCount}
       />
 
       {/* 3. Action Bar */}
@@ -94,36 +99,41 @@ export function PostCard({ post }: PostCardProps) {
         onCommentsClick={() => setIsCommentsOpen(true)}
       />
 
-      {/* 5. Music Track Attachment */}
-      <MusicAttachment audioTrack={post.audioTrack} />
-
-      {/* 6. Quick Inline Comment Input (Desktop) */}
-      {currentUser && (
+      {/* 5. Inline Comment Input with Avatar (From Reference Image) */}
+      <div className="px-3.5 pb-2.5">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSubmitComment();
           }}
-          className="hidden sm:flex items-center gap-2 px-3.5 py-2.5 border-t border-[var(--glass-border-subtle)] text-xs"
+          className="flex items-center gap-2.5 pt-1 text-xs"
         >
+          <Avatar
+            src={currentUser?.avatarUrl || '/images/avatar-mujeeb.png'}
+            alt={currentUser?.displayName || 'User'}
+            size="xs"
+          />
           <input
             type="text"
             value={inlineComment}
             onChange={(e) => setInlineComment(e.target.value)}
             placeholder="Add a comment..."
-            className="flex-1 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none text-xs"
+            className="flex-1 bg-transparent text-neutral-200 placeholder-neutral-500 focus:outline-none text-xs"
           />
           {inlineComment.trim() && (
             <button
               type="submit"
               disabled={isSubmittingComment}
-              className="text-[var(--accent-blue)] font-bold hover:underline cursor-pointer disabled:opacity-50"
+              className="text-[#0095f6] font-bold hover:underline cursor-pointer disabled:opacity-50"
             >
               Post
             </button>
           )}
         </form>
-      )}
+      </div>
+
+      {/* 6. Music Track Attachment */}
+      <MusicAttachment audioTrack={post.audioTrack} />
 
       {/* Modals and Drawers */}
       <CommentsDrawer
@@ -146,3 +156,4 @@ export function PostCard({ post }: PostCardProps) {
     </article>
   );
 }
+
